@@ -1,0 +1,7 @@
+{
+  "name": "Task Genie - Android Task Manager",
+  "description": "Android-based task management software with AI assistance, subtask division, calendar scheduling, collaboration work plot, Pomodoro focus mode, and role-based permissions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
