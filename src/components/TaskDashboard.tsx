@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { TaskItem, TaskCategory, UserProfile } from '../types/task';
 import { D1TaskStoreService } from '../store/taskStore';
 import { GenieService } from '../services/genieService';
+import { DailyGoalWidget } from './DailyGoalWidget';
 import {
   CheckCircle2,
   Circle,
@@ -140,29 +141,29 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
     return (
       <div
         key={task.id}
-        className={`bg-white dark:bg-slate-900 rounded-2xl border transition-all duration-200 overflow-hidden ${
+        className={`bg-white dark:bg-zinc-900 rounded-2xl border transition-all duration-200 overflow-hidden ${
           isCompleted
-            ? 'border-slate-200/60 dark:border-slate-800/60 opacity-80'
+            ? 'border-slate-200/60 dark:border-zinc-800/60 opacity-75'
             : isPendingAcceptance
-            ? 'border-amber-300 dark:border-amber-700/60 shadow-sm'
-            : 'border-slate-200/90 dark:border-slate-800 shadow-xs hover:border-slate-300'
+            ? 'border-amber-300 dark:border-zinc-700 shadow-sm'
+            : 'border-slate-200/90 dark:border-zinc-800 shadow-xs hover:border-slate-300 dark:hover:border-zinc-700'
         }`}
       >
         <div className="p-3.5">
           {/* Top Line: Category / Due Date / Priority */}
-          <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 mb-2">
+          <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400 mb-2">
             <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="font-semibold text-indigo-600 dark:text-indigo-400">{task.category}</span>
+              <span className="font-semibold text-slate-800 dark:text-zinc-200">{task.category}</span>
               <span aria-hidden="true">·</span>
               <div className="flex items-center gap-1">
-                <Clock className="w-3 h-3 text-slate-400" />
+                <Clock className="w-3 h-3 text-slate-400 dark:text-zinc-500" />
                 <span>{task.dueDate === todayStr ? 'Today' : task.dueDate}</span>
                 {task.dueTime && <span>{task.dueTime}</span>}
               </div>
               {task.isRecurring && (
                 <>
                   <span aria-hidden="true">·</span>
-                  <span className="inline-flex items-center gap-0.5 text-indigo-600 dark:text-indigo-400">
+                  <span className="inline-flex items-center gap-0.5 text-zinc-700 dark:text-zinc-300">
                     <Repeat className="w-2.5 h-2.5" />
                     <span>{task.recurringFrequency}</span>
                   </span>
@@ -179,12 +180,12 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
           <div className="flex items-start gap-2.5">
             <button
               onClick={() => handleToggleTaskStatus(task)}
-              className="mt-0.5 text-slate-400 hover:text-indigo-600 transition-colors shrink-0"
+              className="mt-0.5 text-slate-400 dark:text-zinc-500 hover:text-slate-800 dark:hover:text-white transition-colors shrink-0"
               title={isCompleted ? 'Mark incomplete' : 'Mark as done'}
               aria-label={isCompleted ? 'Mark incomplete' : 'Mark as done'}
             >
               {isCompleted ? (
-                <CheckCircle2 className="w-5 h-5 text-emerald-500 fill-emerald-50 dark:fill-emerald-950/40" />
+                <CheckCircle2 className="w-5 h-5 text-emerald-500 dark:text-emerald-400 fill-emerald-50 dark:fill-zinc-800" />
               ) : (
                 <Circle className="w-5 h-5 stroke-[1.75]" />
               )}
@@ -192,15 +193,15 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
 
             <div className="flex-1 min-w-0">
               <h3
-                className={`text-sm font-semibold text-slate-900 dark:text-white leading-snug break-words ${
-                  isCompleted ? 'line-through text-slate-400 dark:text-slate-500' : ''
+                className={`text-sm font-semibold text-slate-900 dark:text-zinc-100 leading-snug break-words ${
+                  isCompleted ? 'line-through text-slate-400 dark:text-zinc-500' : ''
                 }`}
               >
                 {task.title}
               </h3>
 
               {task.description && (
-                <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                <p className="text-xs text-slate-600 dark:text-zinc-400 mt-1 line-clamp-2 leading-relaxed">
                   {task.description}
                 </p>
               )}
@@ -209,12 +210,12 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
 
           {/* Pending Assignment Approval Banner (From Notes: User -> Accept / Resign / Reject) */}
           {isPendingAcceptance && (
-            <div className="mt-3 p-2.5 bg-amber-50 dark:bg-amber-950/40 rounded-xl border border-amber-200 dark:border-amber-800/60">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-900 dark:text-amber-200 mb-1.5">
-                <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+            <div className="mt-3 p-2.5 bg-amber-50 dark:bg-black rounded-xl border border-amber-200 dark:border-zinc-700">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-900 dark:text-zinc-100 mb-1.5">
+                <AlertCircle className="w-3.5 h-3.5 text-amber-500" />
                 <span>Work Assigned by {task.assignedBy || 'Manager'}</span>
               </div>
-              <p className="text-[11px] text-amber-800 dark:text-amber-300/80 mb-2">
+              <p className="text-[11px] text-amber-800 dark:text-zinc-400 mb-2">
                 Awaiting your response according to Context Diagram specifications.
               </p>
               <div className="flex items-center gap-1.5 flex-wrap">
@@ -227,14 +228,14 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
                 </button>
                 <button
                   onClick={() => handleAssignmentResponse(task, 'resigned')}
-                  className="px-2.5 py-1 text-xs font-medium bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 hover:bg-slate-300 rounded-lg transition-colors flex items-center gap-1"
+                  className="px-2.5 py-1 text-xs font-medium bg-slate-200 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 hover:bg-slate-300 dark:hover:bg-zinc-700 rounded-lg transition-colors flex items-center gap-1"
                 >
                   <CornerUpLeft className="w-3 h-3" />
                   <span>Resign</span>
                 </button>
                 <button
                   onClick={() => handleAssignmentResponse(task, 'rejected')}
-                  className="px-2.5 py-1 text-xs font-medium bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 hover:bg-rose-200 rounded-lg transition-colors flex items-center gap-1"
+                  className="px-2.5 py-1 text-xs font-medium bg-rose-100 dark:bg-zinc-800 text-rose-700 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-zinc-700 rounded-lg transition-colors flex items-center gap-1 border border-transparent dark:border-zinc-700"
                 >
                   <X className="w-3 h-3" />
                   <span>Reject</span>
@@ -244,12 +245,12 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
           )}
 
           {/* Subtasks summary & Attachment chips */}
-          <div className="mt-3 flex items-center justify-between gap-2 text-xs text-slate-500 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+          <div className="mt-3 flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-zinc-400 pt-2 border-t border-slate-100 dark:border-zinc-800">
             <div className="flex items-center gap-3">
               {task.subtasks.length > 0 && (
                 <button
                   onClick={() => setExpandedTaskId(isExpanded ? null : task.id)}
-                  className="flex items-center gap-1 text-[11px] text-indigo-600 dark:text-indigo-400 font-medium hover:underline"
+                  className="flex items-center gap-1 text-[11px] text-slate-800 dark:text-zinc-200 font-medium hover:underline"
                 >
                   <span>
                     Subtasks: {completedSubtasks}/{task.subtasks.length}
@@ -259,8 +260,8 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
               )}
 
               {task.attachments.length > 0 && (
-                <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                  <Paperclip className="w-3 h-3 text-slate-400" />
+                <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-zinc-400">
+                  <Paperclip className="w-3 h-3 text-slate-400 dark:text-zinc-500" />
                   <span>{task.attachments.length} attachment{task.attachments.length > 1 ? 's' : ''}</span>
                 </div>
               )}
@@ -271,7 +272,7 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
               {/* Focus Mode trigger (Level 1: Pomodoro FM) */}
               <button
                 onClick={() => onStartFocus(task)}
-                className="p-1.5 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-lg hover:bg-indigo-50 dark:hover:bg-indigo-950/50 transition-colors"
+                className="p-1.5 text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
                 title="Start Focus Mode (Pomodoro FM)"
               >
                 <Play className="w-3.5 h-3.5 fill-current" />
@@ -279,7 +280,7 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
 
               <button
                 onClick={() => onEditTask(task)}
-                className="p-1.5 text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                className="p-1.5 text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
                 title="Edit Task"
               >
                 <Edit2 className="w-3.5 h-3.5" />
@@ -287,7 +288,7 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
 
               <button
                 onClick={() => handleDeleteTask(task.id)}
-                className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                className="p-1.5 text-slate-400 dark:text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-zinc-800 transition-colors"
                 title="Delete Task"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -297,24 +298,24 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
 
           {/* Subtasks Dropdown List */}
           {isExpanded && (
-            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800/80 space-y-2">
-              <div className="flex items-center justify-between text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-zinc-800 space-y-2">
+              <div className="flex items-center justify-between text-[11px] font-semibold text-slate-700 dark:text-zinc-300">
                 <span>Subtasks Division ({completedSubtasks}/{task.subtasks.length})</span>
                 <button
                   disabled={dividingTaskId === task.id}
                   onClick={() => handleAiDivideSubtasks(task)}
-                  className="flex items-center gap-1 text-indigo-600 dark:text-indigo-400 hover:underline disabled:opacity-50"
+                  className="flex items-center gap-1 text-slate-800 dark:text-zinc-200 hover:underline disabled:opacity-50"
                   title="Ask Genie AI to automatically divide into subtasks"
                 >
-                  <Sparkles className="w-3 h-3 text-amber-500" />
+                  <Sparkles className="w-3 h-3 text-amber-400" />
                   <span>{dividingTaskId === task.id ? 'Dividing...' : 'AI Subtasks'}</span>
                 </button>
               </div>
 
               {/* Progress bar */}
-              <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+              <div className="w-full h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-indigo-600 dark:bg-indigo-500 transition-all duration-300"
+                  className="h-full bg-slate-800 dark:bg-zinc-300 transition-all duration-300"
                   style={{
                     width: task.subtasks.length ? `${(completedSubtasks / task.subtasks.length) * 100}%` : '0%',
                   }}
@@ -326,24 +327,24 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
                   <div
                     key={sub.id}
                     onClick={() => handleToggleSubtask(task.id, sub.id)}
-                    className="flex items-center gap-2 text-xs p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer select-none group"
+                    className="flex items-center gap-2 text-xs p-1.5 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800/60 cursor-pointer select-none group"
                   >
-                    <div className="text-slate-400 group-hover:text-indigo-600 transition-colors">
+                    <div className="text-slate-400 dark:text-zinc-500 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
                       {sub.completed ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500 fill-emerald-50 dark:fill-emerald-950/30" />
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 fill-emerald-50 dark:fill-zinc-800" />
                       ) : (
                         <Circle className="w-4 h-4 stroke-[1.75]" />
                       )}
                     </div>
                     <span
-                      className={`flex-1 text-[11px] text-slate-700 dark:text-slate-300 ${
-                        sub.completed ? 'line-through text-slate-400 dark:text-slate-500' : ''
+                      className={`flex-1 text-[11px] text-slate-700 dark:text-zinc-300 ${
+                        sub.completed ? 'line-through text-slate-400 dark:text-zinc-600' : ''
                       }`}
                     >
                       {sub.title}
                     </span>
                     {sub.estimatedMinutes && (
-                      <span className="text-[10px] text-slate-400 font-mono">
+                      <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-mono">
                         {sub.estimatedMinutes}m
                       </span>
                     )}
@@ -353,23 +354,23 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
 
               {/* Attachments Section */}
               {task.attachments.length > 0 && (
-                <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-800/80">
-                  <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider block mb-1.5">
+                <div className="mt-3 pt-2 border-t border-slate-100 dark:border-zinc-800">
+                  <span className="text-[10px] font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block mb-1.5">
                     Attachments (PPT / Assignment)
                   </span>
                   <div className="space-y-1">
                     {task.attachments.map((att) => (
                       <div
                         key={att.id}
-                        className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-slate-800/70 text-xs border border-slate-200/50 dark:border-slate-800"
+                        className="flex items-center justify-between p-2 rounded-lg bg-slate-50 dark:bg-black text-xs border border-slate-200/50 dark:border-zinc-800"
                       >
                         <div className="flex items-center gap-2 truncate">
-                          <Paperclip className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                          <span className="text-[11px] font-medium text-slate-800 dark:text-slate-200 truncate">
+                          <Paperclip className="w-3.5 h-3.5 text-slate-600 dark:text-zinc-400 shrink-0" />
+                          <span className="text-[11px] font-medium text-slate-800 dark:text-zinc-200 truncate">
                             {att.name}
                           </span>
                         </div>
-                        <span className="text-[10px] text-slate-400 font-mono shrink-0 ml-2">
+                        <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-mono shrink-0 ml-2">
                           {att.size}
                         </span>
                       </div>
@@ -387,14 +388,14 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
   return (
     <div className="flex-1 w-full flex flex-col overflow-y-auto">
       {/* 3 Main Tabs as drawn in the wireframe: [ • Task ] [ • Calendar ] [ • Collaboration ] */}
-      <div className="px-4 pt-3 pb-1 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 sticky top-0 z-20">
-        <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-800 rounded-xl text-xs font-semibold">
+      <div className="px-4 pt-3 pb-1 bg-white dark:bg-black border-b border-slate-200/80 dark:border-zinc-800 sticky top-0 z-20">
+        <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-zinc-900 rounded-xl text-xs font-semibold border border-transparent dark:border-zinc-800">
           <button
             onClick={() => onSelectTab('tasks')}
             className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
               activeMainTab === 'tasks'
-                ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
+                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <span className="text-base leading-none">•</span>
@@ -405,8 +406,8 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
             onClick={() => onSelectTab('calendar')}
             className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
               activeMainTab === 'calendar'
-                ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
+                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <span className="text-base leading-none">•</span>
@@ -417,8 +418,8 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
             onClick={() => onSelectTab('collaboration')}
             className={`flex-1 py-1.5 rounded-lg flex items-center justify-center gap-1.5 transition-all ${
               activeMainTab === 'collaboration'
-                ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-white shadow-xs'
-                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+                ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-white shadow-xs'
+                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
             <span className="text-base leading-none">•</span>
@@ -428,16 +429,16 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
 
         {/* Filter Drawer / Search when toggled */}
         {isFilterOpen && (
-          <div className="mt-2.5 pb-2 pt-1 border-t border-slate-100 dark:border-slate-800 space-y-2 animate-in fade-in duration-150">
+          <div className="mt-2.5 pb-2 pt-1 border-t border-slate-100 dark:border-zinc-800 space-y-2 animate-in fade-in duration-150">
             {/* Search Input */}
             <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <Search className="w-3.5 h-3.5 text-slate-400 dark:text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Search tasks, PPTs, deadlines..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                className="w-full pl-8 pr-3 py-1.5 text-xs rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-zinc-500"
               />
             </div>
 
@@ -449,8 +450,8 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
                   onClick={() => setSelectedCategory(cat)}
                   className={`px-2.5 py-1 rounded-lg whitespace-nowrap text-[11px] font-medium transition-colors ${
                     selectedCategory === cat
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+                      ? 'bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-950 font-semibold'
+                      : 'bg-slate-100 dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-800'
                   }`}
                 >
                   {cat}
@@ -462,20 +463,27 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
       </div>
 
       {/* Task Content Stream */}
-      <div className="p-4 space-y-5">
+      <div className="p-4 space-y-4">
+        {/* Daily Goal: Single High-Priority Focus Objective */}
+        <DailyGoalWidget
+          tasks={tasks}
+          onStartFocus={onStartFocus}
+          onOpenCreateTask={onOpenCreateTask}
+        />
+
         {/* Quick Template Pill Button: [ Task -> Create PPT ] from sketch notes */}
-        <div className="bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 dark:from-indigo-950/30 dark:to-purple-950/30 p-3 rounded-2xl border border-indigo-200/50 dark:border-indigo-900/50 flex items-center justify-between gap-2">
+        <div className="bg-slate-100 dark:bg-zinc-900 p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2">
           <div className="min-w-0">
-            <span className="text-[10px] uppercase font-bold text-indigo-600 dark:text-indigo-400 tracking-wider">
+            <span className="text-[10px] uppercase font-bold text-slate-600 dark:text-zinc-400 tracking-wider">
               Quick Assignment Template
             </span>
-            <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 truncate">
+            <p className="text-xs font-semibold text-slate-900 dark:text-zinc-100 truncate">
               Task → Create PPT Deck
             </p>
           </div>
           <button
             onClick={() => onOpenCreateTask('Create PPT')}
-            className="px-2.5 py-1 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors shrink-0"
+            className="px-2.5 py-1 text-xs font-medium bg-slate-900 hover:bg-slate-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white text-white rounded-lg transition-colors shrink-0"
           >
             + Use Template
           </button>
@@ -485,25 +493,25 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
         <div>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <h2 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+              <h2 className="text-xs font-bold text-slate-900 dark:text-zinc-100 uppercase tracking-wider">
                 Today's Tasks
               </h2>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300">
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-800 dark:text-zinc-300">
                 {todayTasks.length}
               </span>
             </div>
-            <span className="text-[11px] text-slate-400">{todayStr}</span>
+            <span className="text-[11px] text-slate-400 dark:text-zinc-500">{todayStr}</span>
           </div>
 
           <div className="space-y-2.5">
             {todayTasks.length > 0 ? (
               todayTasks.map(renderTaskCard)
             ) : (
-              <div className="text-center py-6 bg-white dark:bg-slate-900 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800">
-                <p className="text-xs text-slate-400">No tasks scheduled for today.</p>
+              <div className="text-center py-6 bg-white dark:bg-zinc-900 rounded-2xl border border-dashed border-slate-200 dark:border-zinc-800">
+                <p className="text-xs text-slate-400 dark:text-zinc-500">No tasks scheduled for today.</p>
                 <button
                   onClick={() => onOpenCreateTask()}
-                  className="mt-2 text-xs font-semibold text-indigo-600 hover:underline"
+                  className="mt-2 text-xs font-semibold text-slate-900 dark:text-zinc-100 hover:underline"
                 >
                   + Create your first task
                 </button>
@@ -519,7 +527,7 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
               <h2 className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
                 Past Due Deadlines
               </h2>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300">
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-rose-100 dark:bg-zinc-900 text-rose-700 dark:text-rose-400 border border-transparent dark:border-zinc-800">
                 {overdueOrPastTasks.length}
               </span>
             </div>
@@ -532,10 +540,10 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
           <div>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <h2 className="text-xs font-bold text-slate-900 dark:text-white uppercase tracking-wider">
+                <h2 className="text-xs font-bold text-slate-900 dark:text-zinc-100 uppercase tracking-wider">
                   Upcoming Schedule
                 </h2>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
                   {upcomingTasks.length}
                 </span>
               </div>
@@ -548,7 +556,7 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
         {completedTasks.length > 0 && (
           <div className="pt-2">
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">
+              <h2 className="text-xs font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
                 Completed ({completedTasks.length})
               </h2>
             </div>

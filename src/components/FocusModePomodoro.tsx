@@ -181,14 +181,14 @@ export const FocusModePomodoro: React.FC<FocusModePomodoroProps> = ({
   const strokeDashoffset = 100 - progressPercent;
 
   return (
-    <div className="flex-1 w-full flex flex-col p-4 overflow-y-auto bg-gradient-to-b from-indigo-50/50 via-white to-slate-50 dark:from-slate-900 dark:via-slate-900 dark:to-slate-950">
+    <div className="flex-1 w-full flex flex-col p-4 overflow-y-auto bg-gradient-to-b from-indigo-50/50 via-white to-slate-50 dark:from-black dark:via-zinc-950 dark:to-black">
       {/* Top Header */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 dark:text-zinc-400">
             Level 1 DFD: Pomodoro (FM)
           </span>
-          <h2 className="text-base font-bold text-slate-900 dark:text-white">
+          <h2 className="text-base font-bold text-slate-900 dark:text-zinc-100">
             Focus Mode Engine
           </h2>
         </div>
@@ -197,19 +197,19 @@ export const FocusModePomodoro: React.FC<FocusModePomodoroProps> = ({
           onClick={toggleAmbientAudio}
           className={`p-2 rounded-xl border text-xs font-medium flex items-center gap-1.5 transition-colors ${
             isAudioEnabled
-              ? 'bg-amber-100 border-amber-300 text-amber-900 dark:bg-amber-950/80 dark:border-amber-800 dark:text-amber-200'
-              : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
+              ? 'bg-amber-100 border-amber-300 text-amber-900 dark:bg-zinc-800 dark:border-zinc-700 dark:text-zinc-100'
+              : 'bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-300'
           }`}
           title="Toggle ambient focus white noise"
         >
-          {isAudioEnabled ? <Volume2 className="w-4 h-4 text-amber-600" /> : <VolumeX className="w-4 h-4" />}
+          {isAudioEnabled ? <Volume2 className="w-4 h-4 text-amber-600 dark:text-zinc-200" /> : <VolumeX className="w-4 h-4" />}
           <span className="text-[11px] hidden xs:inline">{isAudioEnabled ? 'Audio Active' : 'Sound Off'}</span>
         </button>
       </div>
 
       {/* Linked Task Selector */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl p-3 border border-slate-200 dark:border-slate-800 mb-6 shadow-xs">
-        <label className="text-[10px] font-bold uppercase text-slate-400 block mb-1">
+      <div className="bg-white dark:bg-zinc-900 rounded-2xl p-3 border border-slate-200 dark:border-zinc-800 mb-6 shadow-xs">
+        <label className="text-[10px] font-bold uppercase text-slate-400 dark:text-zinc-500 block mb-1">
           Active Task Target:
         </label>
         <div className="flex items-center justify-between gap-2">
@@ -222,30 +222,30 @@ export const FocusModePomodoro: React.FC<FocusModePomodoroProps> = ({
                 onSelectTask(found);
               }
             }}
-            className="w-full text-xs font-bold text-slate-900 dark:text-white bg-transparent outline-none cursor-pointer truncate"
+            className="w-full text-xs font-bold text-slate-900 dark:text-zinc-100 bg-transparent outline-none cursor-pointer truncate"
           >
             {tasks.map((t) => (
-              <option key={t.id} value={t.id}>
+              <option key={t.id} value={t.id} className="dark:bg-zinc-900 dark:text-zinc-100">
                 {t.title} ({t.category})
               </option>
             ))}
           </select>
         </div>
-        <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-1.5 pt-1.5 border-t border-slate-100 dark:border-slate-800">
-          <span>Logged Time: <strong className="text-indigo-600 font-mono">{activeTask?.focusMinutesSpent || 0}m</strong></span>
+        <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-zinc-400 mt-1.5 pt-1.5 border-t border-slate-100 dark:border-zinc-800">
+          <span>Logged Time: <strong className="text-indigo-600 dark:text-zinc-200 font-mono">{activeTask?.focusMinutesSpent || 0}m</strong></span>
           <span>·</span>
           <span>Priority: <strong className="capitalize">{activeTask?.priority}</strong></span>
         </div>
       </div>
 
       {/* Mode Switcher Tabs */}
-      <div className="flex items-center p-1 bg-slate-100 dark:bg-slate-800 rounded-xl max-w-xs mx-auto mb-6 text-xs font-medium">
+      <div className="flex items-center p-1 bg-slate-100 dark:bg-zinc-900 rounded-xl max-w-xs mx-auto mb-6 text-xs font-medium">
         <button
           onClick={() => setTimerMode('work')}
           className={`flex-1 py-1.5 rounded-lg transition-all ${
             mode === 'work'
-              ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-white font-bold shadow-xs'
-              : 'text-slate-600 dark:text-slate-400'
+              ? 'bg-white dark:bg-zinc-800 text-indigo-700 dark:text-zinc-100 font-bold shadow-xs'
+              : 'text-slate-600 dark:text-zinc-400'
           }`}
         >
           Work (25m)
@@ -254,8 +254,8 @@ export const FocusModePomodoro: React.FC<FocusModePomodoroProps> = ({
           onClick={() => setTimerMode('shortBreak')}
           className={`flex-1 py-1.5 rounded-lg transition-all ${
             mode === 'shortBreak'
-              ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-white font-bold shadow-xs'
-              : 'text-slate-600 dark:text-slate-400'
+              ? 'bg-white dark:bg-zinc-800 text-indigo-700 dark:text-zinc-100 font-bold shadow-xs'
+              : 'text-slate-600 dark:text-zinc-400'
           }`}
         >
           Break (5m)
@@ -264,8 +264,8 @@ export const FocusModePomodoro: React.FC<FocusModePomodoroProps> = ({
           onClick={() => setTimerMode('longBreak')}
           className={`flex-1 py-1.5 rounded-lg transition-all ${
             mode === 'longBreak'
-              ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-white font-bold shadow-xs'
-              : 'text-slate-600 dark:text-slate-400'
+              ? 'bg-white dark:bg-zinc-800 text-indigo-700 dark:text-zinc-100 font-bold shadow-xs'
+              : 'text-slate-600 dark:text-zinc-400'
           }`}
         >
           Rest (15m)
@@ -280,7 +280,7 @@ export const FocusModePomodoro: React.FC<FocusModePomodoroProps> = ({
             cx="50"
             cy="50"
             r="42"
-            className="stroke-slate-200 dark:stroke-slate-800"
+            className="stroke-slate-200 dark:stroke-zinc-800"
             strokeWidth="6"
             fill="transparent"
           />
@@ -289,7 +289,7 @@ export const FocusModePomodoro: React.FC<FocusModePomodoroProps> = ({
             cx="50"
             cy="50"
             r="42"
-            className="stroke-indigo-600 dark:stroke-indigo-500 transition-all duration-500 ease-linear"
+            className="stroke-indigo-600 dark:stroke-zinc-200 transition-all duration-500 ease-linear"
             strokeWidth="6"
             strokeDasharray="264"
             strokeDashoffset={264 - (264 * progressPercent) / 100}
@@ -299,13 +299,13 @@ export const FocusModePomodoro: React.FC<FocusModePomodoroProps> = ({
         </svg>
 
         <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-          <span className="text-4xl font-extrabold text-slate-900 dark:text-white font-mono tracking-tight">
+          <span className="text-4xl font-extrabold text-slate-900 dark:text-zinc-100 font-mono tracking-tight">
             {timeFormatted}
           </span>
-          <span className="text-xs uppercase font-bold text-slate-400 mt-1 tracking-wider">
+          <span className="text-xs uppercase font-bold text-slate-400 dark:text-zinc-500 mt-1 tracking-wider">
             {mode === 'work' ? 'Deep Focus Session' : 'Resting Interval'}
           </span>
-          <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-medium mt-1">
+          <span className="text-[11px] text-indigo-600 dark:text-zinc-400 font-medium mt-1">
             Session #{completedSessionsCount} today
           </span>
         </div>
@@ -318,7 +318,7 @@ export const FocusModePomodoro: React.FC<FocusModePomodoroProps> = ({
             setIsRunning(false);
             setSecondsLeft(durationMinutes * 60);
           }}
-          className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition-all"
+          className="p-3 rounded-2xl bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all"
           title="Reset Timer"
         >
           <RotateCcw className="w-5 h-5" />
@@ -326,7 +326,7 @@ export const FocusModePomodoro: React.FC<FocusModePomodoroProps> = ({
 
         <button
           onClick={() => setIsRunning(!isRunning)}
-          className="px-8 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 transition-all flex items-center gap-2"
+          className="px-8 py-4 rounded-2xl bg-indigo-600 hover:bg-indigo-700 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200 active:scale-95 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 dark:shadow-none transition-all flex items-center gap-2"
         >
           {isRunning ? (
             <>
@@ -343,7 +343,7 @@ export const FocusModePomodoro: React.FC<FocusModePomodoroProps> = ({
 
         <button
           onClick={handleSessionComplete}
-          className="p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 transition-all"
+          className="p-3 rounded-2xl bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 transition-all"
           title="Skip to next session"
         >
           <SkipForward className="w-5 h-5" />
@@ -352,8 +352,8 @@ export const FocusModePomodoro: React.FC<FocusModePomodoroProps> = ({
 
       {/* Subtasks Checklist for Active Task */}
       {activeTask && activeTask.subtasks.length > 0 && (
-        <div className="mt-8 bg-white dark:bg-slate-900 rounded-2xl p-4 border border-slate-200 dark:border-slate-800">
-          <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider block mb-2">
+        <div className="mt-8 bg-white dark:bg-zinc-900 rounded-2xl p-4 border border-slate-200 dark:border-zinc-800">
+          <span className="text-[10px] font-bold uppercase text-slate-400 dark:text-zinc-500 tracking-wider block mb-2">
             Focus Checklist for Current Task:
           </span>
           <div className="space-y-1.5">
@@ -361,12 +361,12 @@ export const FocusModePomodoro: React.FC<FocusModePomodoroProps> = ({
               <div
                 key={st.id}
                 onClick={() => D1TaskStoreService.toggleSubtask(activeTask.id, st.id)}
-                className="flex items-center gap-2 text-xs p-1 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer"
+                className="flex items-center gap-2 text-xs p-1 rounded-lg hover:bg-slate-50 dark:hover:bg-zinc-800 cursor-pointer"
               >
-                <div className="w-4 h-4 rounded border border-slate-300 dark:border-slate-600 flex items-center justify-center">
+                <div className="w-4 h-4 rounded border border-slate-300 dark:border-zinc-700 flex items-center justify-center">
                   {st.completed && <CheckCircle className="w-4 h-4 text-emerald-500" />}
                 </div>
-                <span className={st.completed ? 'line-through text-slate-400' : 'text-slate-800 dark:text-slate-200'}>
+                <span className={st.completed ? 'line-through text-slate-400 dark:text-zinc-500' : 'text-slate-800 dark:text-zinc-200'}>
                   {st.title}
                 </span>
               </div>

@@ -1,6 +1,7 @@
 import React from 'react';
 import { UserProfile } from '../types/task';
 import { CheckSquare, Calendar, Users, Timer, BarChart3, FileCode, LogOut, X, Shield, UserCheck } from 'lucide-react';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface NavigationDrawerProps {
   isOpen: boolean;
@@ -42,10 +43,10 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
       />
 
       {/* Drawer Body */}
-      <div className="relative w-72 max-w-[80%] h-full bg-white dark:bg-slate-900 shadow-2xl flex flex-col justify-between z-10 animate-in slide-in-from-left duration-200">
+      <div className="relative w-72 max-w-[80%] h-full bg-white dark:bg-black shadow-2xl flex flex-col justify-between z-10 animate-in slide-in-from-left duration-200 border-r border-transparent dark:border-zinc-800">
         <div>
           {/* Header Profile Section */}
-          <div className="p-4 bg-gradient-to-br from-indigo-600 to-violet-700 text-white relative">
+          <div className="p-4 bg-slate-900 dark:bg-zinc-900 text-white relative border-b border-transparent dark:border-zinc-800">
             <button
               onClick={onClose}
               className="absolute top-3 right-3 text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
@@ -103,15 +104,15 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                   }}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
                     isActive
-                      ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 font-semibold'
-                      : 'text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
+                      ? 'bg-zinc-100 dark:bg-zinc-900 text-slate-900 dark:text-white font-semibold border border-transparent dark:border-zinc-800'
+                      : 'text-slate-700 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-900 dark:hover:text-zinc-200'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-400'}`} />
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-zinc-900 dark:text-zinc-100' : 'text-slate-400 dark:text-zinc-500'}`} />
                     <span>{item.label}</span>
                   </div>
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 border border-transparent dark:border-zinc-800">
                     {item.badge}
                   </span>
                 </button>
@@ -119,26 +120,27 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
             })}
           </nav>
 
-          <div className="px-4 py-2">
-            <div className="border-t border-slate-200 dark:border-slate-800 my-2"></div>
+          <div className="px-4 py-2 space-y-2">
+            <PWAInstallButton variant="drawer" />
+            <div className="border-t border-slate-200 dark:border-zinc-800 my-2"></div>
             <button
               onClick={() => {
                 onOpenArchitecture();
                 onClose();
               }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-slate-600 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-900 rounded-xl transition-colors"
             >
-              <FileCode className="w-4 h-4 text-indigo-500" />
+              <FileCode className="w-4 h-4 text-zinc-400" />
               <span>Diagrams & DFD Specifications</span>
             </button>
           </div>
         </div>
 
         {/* Footer Logout */}
-        <div className="p-3 border-t border-slate-200 dark:border-slate-800">
+        <div className="p-3 border-t border-slate-200 dark:border-zinc-800">
           <button
             onClick={onLogout}
-            className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors"
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-zinc-900 rounded-xl transition-colors"
           >
             <LogOut className="w-4 h-4" />
             <span>Sign Out Profile</span>

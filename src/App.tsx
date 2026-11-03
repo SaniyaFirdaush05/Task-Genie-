@@ -19,6 +19,7 @@ import { AnalyticsReports } from './components/AnalyticsReports';
 import { AskGenieChatDrawer } from './components/AskGenieChatDrawer';
 import { NotificationAlerts } from './components/NotificationAlerts';
 import { ContextDiagramModal } from './components/ContextDiagramModal';
+import { OfflineIndicator } from './components/OfflineIndicator';
 import {
   CheckSquare,
   Calendar as CalendarNavIcon,
@@ -44,6 +45,8 @@ export default function App() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [taskToEdit, setTaskToEdit] = useState<TaskItem | null>(null);
   const [initialTemplate, setInitialTemplate] = useState<string | undefined>(undefined);
+  const [initialDueDate, setInitialDueDate] = useState<string | undefined>(undefined);
+  const [initialDueTime, setInitialDueTime] = useState<string | undefined>(undefined);
   const [isGenieDrawerOpen, setIsGenieDrawerOpen] = useState(false);
   const [isAlertsModalOpen, setIsAlertsModalOpen] = useState(false);
   const [isArchitectureModalOpen, setIsArchitectureModalOpen] = useState(false);
@@ -93,15 +96,19 @@ export default function App() {
     setCurrentUser(updated);
   };
 
-  const handleOpenCreateTask = (templateTitle?: string) => {
+  const handleOpenCreateTask = (templateTitle?: string, date?: string, time?: string) => {
     setTaskToEdit(null);
     setInitialTemplate(templateTitle);
+    setInitialDueDate(date);
+    setInitialDueTime(time);
     setIsCreateModalOpen(true);
   };
 
   const handleEditTask = (task: TaskItem) => {
     setTaskToEdit(task);
     setInitialTemplate(undefined);
+    setInitialDueDate(undefined);
+    setInitialDueTime(undefined);
     setIsCreateModalOpen(true);
   };
 
@@ -167,10 +174,8 @@ export default function App() {
               <CalendarModule
                 tasks={tasks}
                 currentUser={currentUser}
-                onOpenCreateTask={(dateStr) => {
-                  setTaskToEdit(null);
-                  setInitialTemplate(undefined);
-                  setIsCreateModalOpen(true);
+                onOpenCreateTask={(dateStr, timeStr) => {
+                  handleOpenCreateTask(undefined, dateStr, timeStr);
                 }}
                 onSelectTask={(task) => handleEditTask(task)}
                 onToggleMainTab={(tab) => setActiveScreen(tab)}
@@ -204,24 +209,24 @@ export default function App() {
           <div className="absolute right-4 bottom-18 z-30">
             <button
               onClick={() => setIsGenieDrawerOpen(true)}
-              className="w-13 h-13 rounded-full bg-gradient-to-tr from-amber-500 via-orange-500 to-amber-400 text-white shadow-xl shadow-amber-500/30 flex items-center justify-center hover:scale-105 active:scale-95 transition-all ring-4 ring-white dark:ring-slate-900 group"
+              className="w-13 h-13 rounded-full bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-950 shadow-xl shadow-black/40 flex items-center justify-center hover:scale-105 active:scale-95 transition-all ring-4 ring-white dark:ring-black border border-zinc-700 dark:border-transparent group"
               title="Open Ask Genie AI Assistant"
             >
               <div className="flex flex-col items-center justify-center leading-none">
-                <Sparkles className="w-5 h-5 text-white animate-pulse" />
+                <Sparkles className="w-5 h-5 text-amber-400 dark:text-zinc-900 animate-pulse" />
                 <span className="text-[9px] font-black tracking-tighter mt-0.5">AI</span>
               </div>
             </button>
           </div>
 
           {/* Android Bottom Navigation Bar (Pattern 1 from Mobile touch guideline) */}
-          <div className="w-full h-15 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-t border-slate-200/80 dark:border-slate-800 grid grid-cols-5 items-center px-1 shrink-0 z-20">
+          <div className="w-full h-15 bg-white/95 dark:bg-black/95 backdrop-blur-md border-t border-slate-200/80 dark:border-zinc-800 grid grid-cols-5 items-center px-1 shrink-0 z-20">
             <button
               onClick={() => setActiveScreen('tasks')}
               className={`flex flex-col items-center justify-center h-full transition-colors ${
                 activeScreen === 'tasks'
-                  ? 'text-indigo-600 dark:text-indigo-400'
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                  ? 'text-slate-900 dark:text-white font-semibold'
+                  : 'text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300'
               }`}
             >
               <CheckSquare className="w-5 h-5" />
@@ -232,8 +237,8 @@ export default function App() {
               onClick={() => setActiveScreen('calendar')}
               className={`flex flex-col items-center justify-center h-full transition-colors ${
                 activeScreen === 'calendar'
-                  ? 'text-indigo-600 dark:text-indigo-400'
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                  ? 'text-slate-900 dark:text-white font-semibold'
+                  : 'text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300'
               }`}
             >
               <CalendarNavIcon className="w-5 h-5" />
@@ -244,8 +249,8 @@ export default function App() {
               onClick={() => setActiveScreen('collaboration')}
               className={`flex flex-col items-center justify-center h-full transition-colors ${
                 activeScreen === 'collaboration'
-                  ? 'text-indigo-600 dark:text-indigo-400'
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                  ? 'text-slate-900 dark:text-white font-semibold'
+                  : 'text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300'
               }`}
             >
               <Users className="w-5 h-5" />
@@ -256,8 +261,8 @@ export default function App() {
               onClick={() => setActiveScreen('focus')}
               className={`flex flex-col items-center justify-center h-full transition-colors ${
                 activeScreen === 'focus'
-                  ? 'text-indigo-600 dark:text-indigo-400'
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                  ? 'text-slate-900 dark:text-white font-semibold'
+                  : 'text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300'
               }`}
             >
               <Timer className="w-5 h-5" />
@@ -268,8 +273,8 @@ export default function App() {
               onClick={() => setActiveScreen('analytics')}
               className={`flex flex-col items-center justify-center h-full transition-colors ${
                 activeScreen === 'analytics'
-                  ? 'text-indigo-600 dark:text-indigo-400'
-                  : 'text-slate-400 hover:text-slate-600 dark:hover:text-slate-300'
+                  ? 'text-slate-900 dark:text-white font-semibold'
+                  : 'text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300'
               }`}
             >
               <BarChart3 className="w-5 h-5" />
@@ -295,6 +300,8 @@ export default function App() {
             onClose={() => setIsCreateModalOpen(false)}
             taskToEdit={taskToEdit}
             initialTitleTemplate={initialTemplate}
+            initialDueDate={initialDueDate}
+            initialDueTime={initialDueTime}
           />
 
           {/* Ask Genie AI Chat Drawer */}
@@ -324,6 +331,9 @@ export default function App() {
           />
         </div>
       )}
+
+      {/* Service Worker Offline Status Indicator & Cache Toast */}
+      <OfflineIndicator />
     </AndroidFrame>
   );
 }

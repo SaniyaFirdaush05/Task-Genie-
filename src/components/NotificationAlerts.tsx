@@ -32,23 +32,23 @@ export const NotificationAlerts: React.FC<NotificationAlertsProps> = ({
       <div className="fixed inset-0 bg-black/50 backdrop-blur-xs" onClick={onClose} />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-sm bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col max-h-[80vh] z-10 overflow-hidden animate-in zoom-in-95 duration-150">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+      <div className="relative w-full max-w-sm bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-zinc-800 flex flex-col max-h-[80vh] z-10 overflow-hidden animate-in zoom-in-95 duration-150">
+        <div className="p-4 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-lg bg-indigo-100 dark:bg-zinc-800 text-indigo-600 dark:text-zinc-200 flex items-center justify-center">
               <Bell className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-sm font-bold text-slate-900 dark:text-white">
+              <h2 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
                 Reminder Alerts
               </h2>
-              <p className="text-[10px] text-slate-400">Level 1 DFD: Generate Reminder Alerts</p>
+              <p className="text-[10px] text-slate-400 dark:text-zinc-500">Level 1 DFD: Generate Reminder Alerts</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200"
           >
             <X className="w-4 h-4" />
           </button>
@@ -67,24 +67,24 @@ export const NotificationAlerts: React.FC<NotificationAlertsProps> = ({
                 }}
                 className={`p-3 rounded-2xl border text-xs cursor-pointer transition-all ${
                   alert.read
-                    ? 'bg-slate-50 dark:bg-slate-800/40 border-slate-200/50 dark:border-slate-800 opacity-70'
-                    : 'bg-indigo-50/50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800 shadow-xs'
+                    ? 'bg-slate-50 dark:bg-zinc-950/60 border-slate-200/50 dark:border-zinc-800 opacity-70'
+                    : 'bg-indigo-50/50 dark:bg-zinc-800/90 border-indigo-200 dark:border-zinc-700 shadow-xs'
                 }`}
               >
                 <div className="flex items-start justify-between gap-2 mb-1">
-                  <h4 className="font-bold text-slate-900 dark:text-white text-xs truncate">
+                  <h4 className="font-bold text-slate-900 dark:text-zinc-100 text-xs truncate">
                     {alert.taskTitle}
                   </h4>
-                  <span className="text-[10px] text-slate-400 font-mono shrink-0">
+                  <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-mono shrink-0">
                     {alert.timestamp}
                   </span>
                 </div>
 
-                <p className="text-[11px] text-slate-600 dark:text-slate-400 mb-2">
+                <p className="text-[11px] text-slate-600 dark:text-zinc-300 mb-2">
                   {alert.message}
                 </p>
 
-                <div className="flex items-center justify-between text-[10px] text-indigo-600 dark:text-indigo-400 font-medium">
+                <div className="flex items-center justify-between text-[10px] text-indigo-600 dark:text-zinc-300 font-medium">
                   <div className="flex items-center gap-1">
                     <Clock className="w-3 h-3" />
                     <span>{alert.dueTime}</span>
@@ -105,24 +105,24 @@ export const NotificationAlerts: React.FC<NotificationAlertsProps> = ({
               </div>
             ))
           ) : (
-            <div className="text-center py-8 text-xs text-slate-400">
+            <div className="text-center py-8 text-xs text-slate-400 dark:text-zinc-500">
               No active reminder alerts. You're completely up to date!
             </div>
           )}
         </div>
 
         {alerts.length > 0 && (
-          <div className="p-3 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+          <div className="p-3 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between">
             <button
               onClick={handleClearAll}
-              className="text-xs text-slate-500 hover:text-rose-600 flex items-center gap-1"
+              className="text-xs text-slate-500 dark:text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 flex items-center gap-1"
             >
               <Trash2 className="w-3.5 h-3.5" />
               <span>Clear All Alerts</span>
             </button>
             <button
               onClick={onClose}
-              className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium"
+              className="px-3 py-1 bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 rounded-lg text-xs font-medium"
             >
               Done
             </button>

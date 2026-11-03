@@ -83,3 +83,14 @@ export interface ReminderAlert {
   read: boolean;
   timestamp: string;
 }
+
+export interface DailyGoal {
+  id: string;
+  objective: string;
+  date: string; // YYYY-MM-DD
+  completed: boolean;
+  linkedTaskId?: string;
+  completedAt?: string;
+  createdAt: string;
+}
+

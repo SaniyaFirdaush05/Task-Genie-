@@ -1,8 +1,9 @@
-import { TaskItem, TeamMember, UserProfile, ReminderAlert, AssignmentStatus } from '../types/task';
+import { TaskItem, TeamMember, UserProfile, ReminderAlert, AssignmentStatus, DailyGoal } from '../types/task';
 
 const D1_STORAGE_KEY = 'task_genie_d1_taskstore_v1';
 const USER_STORAGE_KEY = 'task_genie_current_user_v1';
 const ALERTS_STORAGE_KEY = 'task_genie_alerts_v1';
+const DAILY_GOAL_STORAGE_KEY = 'task_genie_daily_goal_v1';
 
 export const INITIAL_TEAM_MEMBERS: TeamMember[] = [
   {
@@ -442,8 +443,65 @@ export class D1TaskStoreService {
     }
   }
 
+  // --- Daily Goal Management ---
+  static getDailyGoal(targetDate?: string): DailyGoal | null {
+    const dateStr = targetDate || new Date().toISOString().split('T')[0];
+    try {
+      const data = localStorage.getItem(`${DAILY_GOAL_STORAGE_KEY}_${dateStr}`);
+      if (!data) {
+        // Return a default demo goal for today if none exists yet
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (dateStr === todayStr) {
+          const defaultGoal: DailyGoal = {
+            id: `goal_${todayStr}`,
+            objective: 'Complete keynote presentation deck & review architecture',
+            date: todayStr,
+            completed: false,
+            linkedTaskId: 'task_create_ppt',
+            createdAt: new Date().toISOString(),
+          };
+          localStorage.setItem(`${DAILY_GOAL_STORAGE_KEY}_${todayStr}`, JSON.stringify(defaultGoal));
+          return defaultGoal;
+        }
+        return null;
+      }
+      return JSON.parse(data);
+    } catch {
+      return null;
+    }
+  }
+
+  static setDailyGoal(goal: DailyGoal | null, targetDate?: string) {
+    const dateStr = targetDate || goal?.date || new Date().toISOString().split('T')[0];
+    if (goal) {
+      localStorage.setItem(`${DAILY_GOAL_STORAGE_KEY}_${dateStr}`, JSON.stringify(goal));
+    } else {
+      localStorage.removeItem(`${DAILY_GOAL_STORAGE_KEY}_${dateStr}`);
+    }
+    this.notify();
+  }
+
+  static toggleDailyGoalComplete(targetDate?: string): DailyGoal | null {
+    const goal = this.getDailyGoal(targetDate);
+    if (!goal) return null;
+    goal.completed = !goal.completed;
+    goal.completedAt = goal.completed ? new Date().toISOString() : undefined;
+    this.setDailyGoal(goal);
+    return goal;
+  }
+
   static resetToDemoData() {
     localStorage.setItem(D1_STORAGE_KEY, JSON.stringify(INITIAL_TASKS));
+    const todayStr = new Date().toISOString().split('T')[0];
+    const defaultGoal: DailyGoal = {
+      id: `goal_${todayStr}`,
+      objective: 'Complete keynote presentation deck & review architecture',
+      date: todayStr,
+      completed: false,
+      linkedTaskId: 'task_create_ppt',
+      createdAt: new Date().toISOString(),
+    };
+    localStorage.setItem(`${DAILY_GOAL_STORAGE_KEY}_${todayStr}`, JSON.stringify(defaultGoal));
     this.notify();
   }
 }
