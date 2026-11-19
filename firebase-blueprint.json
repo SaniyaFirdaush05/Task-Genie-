@@ -1,0 +1,350 @@
+{
+  "entities": {
+    "UserPublicProfile": {
+      "title": "UserPublicProfile",
+      "description": "Non-PII workspace profile and preferences for an authenticated user.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 100
+        },
+        "workspaceMode": {
+          "type": "string",
+          "enum": ["user", "manager"]
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "avatar": {
+          "type": "string",
+          "maxLength": 4096
+        },
+        "dailyFocusGoalMinutes": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "displayName", "workspaceMode", "title", "dailyFocusGoalMinutes", "createdAt", "updatedAt"]
+    },
+    "UserPrivateInfo": {
+      "title": "UserPrivateInfo",
+      "description": "Isolated PII document storing the authenticated user's email address.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "maxLength": 254
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "createdAt", "updatedAt"]
+    },
+    "TaskDocument": {
+      "title": "TaskDocument",
+      "description": "Task Genie task record with subtasks, attachments, collaboration metadata, and focus time.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "description": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "category": {
+          "type": "string",
+          "enum": ["Work", "Study", "Project", "Assignment", "Meeting", "Personal"]
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["high", "medium", "low"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["todo", "in_progress", "completed", "archived"]
+        },
+        "dueDate": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 10
+        },
+        "dueTime": {
+          "type": "string",
+          "maxLength": 10
+        },
+        "isRecurring": {
+          "type": "boolean"
+        },
+        "recurringFrequency": {
+          "type": "string",
+          "enum": ["daily", "weekly", "monthly"]
+        },
+        "nextOccurrenceDate": {
+          "type": "string",
+          "maxLength": 10
+        },
+        "subtasks": {
+          "type": "array"
+        },
+        "attachments": {
+          "type": "array"
+        },
+        "assignedTo": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "assignedBy": {
+          "type": "string",
+          "maxLength": 120
+        },
+        "assignmentStatus": {
+          "type": "string",
+          "enum": ["unassigned", "pending_acceptance", "accepted", "rejected", "resigned"]
+        },
+        "assignmentResponseNote": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "comments": {
+          "type": "array"
+        },
+        "focusMinutesSpent": {
+          "type": "number"
+        },
+        "completedAt": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "createdAtIso": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "ownerUid", "title", "description", "category", "priority", "status", "dueDate", "isRecurring", "subtasks", "attachments", "comments", "focusMinutesSpent", "createdAt", "updatedAt"]
+    },
+    "DailyGoalDocument": {
+      "title": "DailyGoalDocument",
+      "description": "Single high-priority daily focus objective for a calendar date.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "objective": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "date": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 10
+        },
+        "completed": {
+          "type": "boolean"
+        },
+        "linkedTaskId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "completedAt": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "createdAtIso": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "ownerUid", "objective", "date", "completed", "createdAt", "updatedAt"]
+    },
+    "DailyFocusDocument": {
+      "title": "DailyFocusDocument",
+      "description": "Aggregated daily Pomodoro and Deep Focus minutes and session counts.",
+      "type": "object",
+      "properties": {
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "date": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 10
+        },
+        "totalMinutes": {
+          "type": "number"
+        },
+        "sessionsCount": {
+          "type": "number"
+        },
+        "deepFocusSessions": {
+          "type": "number"
+        },
+        "pomodoroSessions": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["ownerUid", "date", "totalMinutes", "sessionsCount", "deepFocusSessions", "pomodoroSessions", "createdAt", "updatedAt"]
+    },
+    "ReminderAlertDocument": {
+      "title": "ReminderAlertDocument",
+      "description": "Reminder alert notification generated for due/assigned tasks.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "ownerUid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "taskId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "taskTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "dueTime": {
+          "type": "string",
+          "maxLength": 80
+        },
+        "message": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "read": {
+          "type": "boolean"
+        },
+        "timestamp": {
+          "type": "string",
+          "maxLength": 64
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "ownerUid", "taskId", "taskTitle", "dueTime", "message", "read", "timestamp", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserPublicProfile" },
+      "description": "Authenticated user's non-PII workspace profile and daily focus goal settings."
+    },
+    "/users/{userId}/private/{docId}": {
+      "schema": { "$ref": "#/entities/UserPrivateInfo" },
+      "description": "Isolated PII storage for authenticated user's email."
+    },
+    "/users/{userId}/tasks/{taskId}": {
+      "schema": { "$ref": "#/entities/TaskDocument" },
+      "description": "User's tasks, subtasks, attachments, comments, and logged focus minutes."
+    },
+    "/users/{userId}/dailyGoals/{goalId}": {
+      "schema": { "$ref": "#/entities/DailyGoalDocument" },
+      "description": "User's daily single high-priority focus objective per day."
+    },
+    "/users/{userId}/dailyFocus/{dateId}": {
+      "schema": { "$ref": "#/entities/DailyFocusDocument" },
+      "description": "Per-day focus time spent and Pomodoro/Deep Focus session counters."
+    },
+    "/users/{userId}/alerts/{alertId}": {
+      "schema": { "$ref": "#/entities/ReminderAlertDocument" },
+      "description": "User's task reminder alerts and read status."
+    }
+  }
+}

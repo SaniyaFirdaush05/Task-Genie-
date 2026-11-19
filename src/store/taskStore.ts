@@ -1,4 +1,6 @@
 import { TaskItem, TeamMember, UserProfile, ReminderAlert, AssignmentStatus, DailyGoal, DailyFocusStats } from '../types/task';
+import type { User } from 'firebase/auth';
+import { firestoreSync } from '../services/firestoreSync';
 
 const D1_STORAGE_KEY = 'task_genie_d1_taskstore_v1';
 const USER_STORAGE_KEY = 'task_genie_current_user_v1';
@@ -310,6 +312,7 @@ export class D1TaskStoreService {
     };
     tasks.unshift(newTask);
     this.saveTasks(tasks);
+    void firestoreSync.upsertTask(newTask);
 
     // Auto-generate reminder alert if upcoming within 24 hours
     this.checkAndGenerateAlert(newTask);
@@ -350,17 +353,20 @@ export class D1TaskStoreService {
           createdAt: new Date().toISOString(),
         };
         tasks.unshift(nextTask);
+        void firestoreSync.upsertTask(nextTask);
       }
     }
 
     tasks[index] = updatedTask;
     this.saveTasks(tasks);
+    void firestoreSync.upsertTask(updatedTask);
     return updatedTask;
   }
 
   static deleteTask(id: string) {
     const tasks = this.getTasks().filter((t) => t.id !== id);
     this.saveTasks(tasks);
+    void firestoreSync.removeTask(id);
   }
 
   static toggleSubtask(taskId: string, subtaskId: string) {
@@ -381,6 +387,7 @@ export class D1TaskStoreService {
     }
 
     this.saveTasks(tasks);
+    void firestoreSync.upsertTask(task);
   }
 
   static respondToAssignment(taskId: string, response: 'accepted' | 'resigned' | 'rejected', note?: string) {
@@ -396,6 +403,7 @@ export class D1TaskStoreService {
     }
 
     this.saveTasks(tasks);
+    void firestoreSync.upsertTask(task);
   }
 
   static addComment(taskId: string, authorName: string, authorRole: 'user' | 'manager', text: string) {
@@ -412,6 +420,7 @@ export class D1TaskStoreService {
     });
 
     this.saveTasks(tasks);
+    void firestoreSync.upsertTask(task);
   }
 
   static logFocusMinutes(taskId: string | undefined, minutes: number, sessionType: 'work' | 'deepFocus' = 'work') {
@@ -425,20 +434,23 @@ export class D1TaskStoreService {
       pomodoroSessions: 0,
     };
 
-    focusMap[todayStr] = {
+    const updatedStats: DailyFocusStats = {
       ...existing,
       totalMinutes: existing.totalMinutes + minutes,
       sessionsCount: existing.sessionsCount + 1,
       deepFocusSessions: existing.deepFocusSessions + (sessionType === 'deepFocus' ? 1 : 0),
       pomodoroSessions: existing.pomodoroSessions + (sessionType === 'work' ? 1 : 0),
     };
+    focusMap[todayStr] = updatedStats;
     localStorage.setItem(DAILY_FOCUS_STORAGE_KEY, JSON.stringify(focusMap));
+    void firestoreSync.upsertDailyFocus(updatedStats);
 
     const tasks = this.getTasks();
     const task = taskId ? tasks.find((t) => t.id === taskId) : undefined;
     if (task) {
       task.focusMinutesSpent = (task.focusMinutesSpent || 0) + minutes;
       this.saveTasks(tasks);
+      void firestoreSync.upsertTask(task);
     } else {
       this.notify();
     }
@@ -537,7 +549,74 @@ export class D1TaskStoreService {
   static setDailyFocusGoalMinutes(minutes: number) {
     const clamped = Math.max(15, Math.min(480, Math.round(minutes)));
     localStorage.setItem(DAILY_FOCUS_GOAL_MINUTES_KEY, String(clamped));
+    void firestoreSync.updateUserPreferences({ dailyFocusGoalMinutes: clamped });
     this.notify();
+  }
+
+  // --- Firebase Auth & Firestore Sync Integration ---
+  static async syncFirebaseUser(firebaseUser: User | null) {
+    if (!firebaseUser) {
+      firestoreSync.stop();
+      return;
+    }
+
+    const seedTasks = this.getTasks();
+    const seedGoal = this.getDailyGoal();
+    const seedFocusMap = this.getDailyFocusMap();
+    const seedAlerts = this.getAlerts();
+    const seedGoalMinutes = this.getDailyFocusGoalMinutes();
+
+    await firestoreSync.startForUser(
+      firebaseUser,
+      {
+        tasks: seedTasks,
+        dailyGoal: seedGoal,
+        dailyFocusMap: seedFocusMap,
+        alerts: seedAlerts,
+        dailyFocusGoalMinutes: seedGoalMinutes,
+      },
+      {
+        onProfileLoaded: (profile, goalMins) => {
+          const fallbackAvatar =
+            profile.avatar ||
+            makeAvatar(
+              profile.name
+                .split(' ')
+                .map((n) => n[0])
+                .join('')
+                .slice(0, 2)
+                .toUpperCase() || 'TG',
+              '#334155',
+              '#0f172a'
+            );
+          const mergedProfile: UserProfile = {
+            ...profile,
+            avatar: fallbackAvatar,
+          };
+          localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(mergedProfile));
+          localStorage.setItem(DAILY_FOCUS_GOAL_MINUTES_KEY, String(goalMins));
+          this.notify();
+        },
+        onTasksSnapshot: (cloudTasks) => {
+          localStorage.setItem(D1_STORAGE_KEY, JSON.stringify(cloudTasks));
+          this.notify();
+        },
+        onDailyGoalsSnapshot: (goalsByDate) => {
+          for (const [dateStr, goal] of Object.entries(goalsByDate)) {
+            localStorage.setItem(`${DAILY_GOAL_STORAGE_KEY}_${dateStr}`, JSON.stringify(goal));
+          }
+          this.notify();
+        },
+        onDailyFocusSnapshot: (focusByDate) => {
+          localStorage.setItem(DAILY_FOCUS_STORAGE_KEY, JSON.stringify(focusByDate));
+          this.notify();
+        },
+        onAlertsSnapshot: (cloudAlerts) => {
+          localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(cloudAlerts));
+          this.notify();
+        },
+      }
+    );
   }
 
   // --- Current User Session Management ---
@@ -568,8 +647,15 @@ export class D1TaskStoreService {
   static setCurrentUser(user: UserProfile | null) {
     if (user) {
       localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+      if (firestoreSync.isActive()) {
+        void firestoreSync.updateUserPreferences({
+          workspaceMode: user.role,
+          title: user.title,
+        });
+      }
     } else {
       localStorage.removeItem(USER_STORAGE_KEY);
+      firestoreSync.stop();
     }
     this.notify();
   }
@@ -611,11 +697,14 @@ export class D1TaskStoreService {
   static markAlertRead(alertId: string) {
     const alerts = this.getAlerts().map((a) => (a.id === alertId ? { ...a, read: true } : a));
     localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(alerts));
+    void firestoreSync.markAlertRead(alertId);
     this.notify();
   }
 
   static clearAlerts() {
+    const existingIds = this.getAlerts().map((a) => a.id);
     localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify([]));
+    void firestoreSync.clearAllAlerts(existingIds);
     this.notify();
   }
 
@@ -623,7 +712,7 @@ export class D1TaskStoreService {
     const todayStr = new Date().toISOString().split('T')[0];
     if (task.dueDate === todayStr) {
       const alerts = this.getAlerts();
-      alerts.unshift({
+      const newAlert: ReminderAlert = {
         id: `alert_${Date.now()}`,
         taskId: task.id,
         taskTitle: task.title,
@@ -631,8 +720,10 @@ export class D1TaskStoreService {
         message: `Task is scheduled for today (${task.priority.toUpperCase()} priority).`,
         read: false,
         timestamp: 'Just now',
-      });
+      };
+      alerts.unshift(newAlert);
       localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(alerts.slice(0, 10)));
+      void firestoreSync.createAlert(newAlert);
     }
   }
 
@@ -671,6 +762,7 @@ export class D1TaskStoreService {
     } else {
       localStorage.removeItem(`${DAILY_GOAL_STORAGE_KEY}_${dateStr}`);
     }
+    void firestoreSync.upsertDailyGoal(goal, dateStr);
     this.notify();
   }
 

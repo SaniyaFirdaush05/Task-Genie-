@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Wifi, Battery, Signal, Smartphone, Maximize2, RotateCcw, FileText, Sparkles } from 'lucide-react';
+import { Wifi, Battery, Signal, Smartphone, Maximize2, RotateCcw, Sparkles } from 'lucide-react';
 
 interface AndroidFrameProps {
   children: React.ReactNode;
   onResetDemoData: () => void;
-  onOpenArchitectureModal: () => void;
   onOpenGenie: () => void;
 }
 
 export const AndroidFrame: React.FC<AndroidFrameProps> = ({
   children,
   onResetDemoData,
-  onOpenArchitectureModal,
   onOpenGenie,
 }) => {
   const [currentTime, setCurrentTime] = useState('09:41');
@@ -44,15 +42,6 @@ export const AndroidFrame: React.FC<AndroidFrameProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={onOpenArchitectureModal}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-zinc-100 dark:bg-zinc-900 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-200 dark:hover:bg-zinc-800 transition-colors font-medium border border-zinc-300 dark:border-zinc-700"
-            title="View Context Diagram & Level 1 DFD Architecture"
-          >
-            <FileText className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Architecture & DFDs</span>
-          </button>
-
           <button
             onClick={onOpenGenie}
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-zinc-900 dark:bg-zinc-800 text-white hover:bg-zinc-800 dark:hover:bg-zinc-700 transition-colors font-medium shadow-sm border border-zinc-700"

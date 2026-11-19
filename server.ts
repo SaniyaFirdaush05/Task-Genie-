@@ -35,12 +35,23 @@ const DEFAULT_TEAM_MEMBERS = [
   'Riya Pant (QA Engineer · Development & Coding)',
 ];
 
+// Cooldown and cache to prevent exceeding free-tier daily quota (429 RESOURCE_EXHAUSTED)
+let geminiCooldownUntil = 0;
+const genieResponseCache = new Map<string, { expiresAt: number; body: any }>();
+const CACHE_TTL_MS = 10 * 60 * 1000;
+
 // Ask Genie AI endpoint
 app.post('/api/ask-genie', async (req, res) => {
   const { action, prompt, taskData } = req.body;
+  const cacheKey = JSON.stringify({ action, prompt, taskData });
+
+  const cached = genieResponseCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return res.json(cached.body);
+  }
 
   try {
-    if (ai) {
+    if (ai && Date.now() >= geminiCooldownUntil) {
       let systemInstruction = `You are "Ask Genie", an intelligent AI assistant built into an Android Task Manager application (Context Diagram: Ask Genie System).
 Your role is to assist users and managers with:
 1. Subtask division (breaking down complex tasks like "Create PPT", assignments, projects into logical, actionable steps).
@@ -118,7 +129,9 @@ Requirements:
             reason: typeof item.reason === 'string' ? item.reason.split('```')[0].slice(0, 80).trim() : '',
           }));
         }
-        return res.json({ success: true, data: parsed, source: 'gemini' });
+        const resultBody = { success: true, data: parsed, source: 'gemini' };
+        genieResponseCache.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, body: resultBody });
+        return res.json(resultBody);
       }
 
       if (action === 'subtask_division') {
@@ -157,16 +170,30 @@ Return ONLY valid JSON with these keys.`;
         try {
           const cleaned = text.replace(/```json/g, '').replace(/```/g, '').trim();
           const parsed = JSON.parse(cleaned);
-          return res.json({ success: true, data: parsed, raw: text });
+          const resultBody = { success: true, data: parsed, raw: text };
+          genieResponseCache.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, body: resultBody });
+          return res.json(resultBody);
         } catch {
-          return res.json({ success: true, data: text, raw: text });
+          const resultBody = { success: true, data: text, raw: text };
+          genieResponseCache.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, body: resultBody });
+          return res.json(resultBody);
         }
       }
 
-      return res.json({ success: true, text });
+      const resultBody = { success: true, text };
+      genieResponseCache.set(cacheKey, { expiresAt: Date.now() + CACHE_TTL_MS, body: resultBody });
+      return res.json(resultBody);
     }
   } catch (err: any) {
-    console.warn('Ask Genie API Error, using intelligent fallback generator:', err.message);
+    const msg = String(err?.message || err || '');
+    const isQuotaError = msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('quota');
+    if (isQuotaError) {
+      // Cool down Gemini calls for 15 minutes so fallback handles traffic cleanly without repeated 429s
+      geminiCooldownUntil = Date.now() + 15 * 60 * 1000;
+      console.info('Gemini free-tier rate limit reached; switched to local fallback engine for 15m.');
+    } else {
+      console.info('Ask Genie fallback triggered:', msg.slice(0, 140));
+    }
   }
 
   // Graceful fallback generator if API call encounters rate limits, unavailability, or missing key

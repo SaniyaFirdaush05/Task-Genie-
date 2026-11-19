@@ -30,13 +30,23 @@ export const CollaborationWorkPlot: React.FC<CollaborationWorkPlotProps> = ({
   onToggleMainTab,
   onSelectTask,
 }) => {
+  const isManager = currentUser.role === 'manager';
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>(INITIAL_TEAM_MEMBERS);
-  const [selectedMember, setSelectedMember] = useState<string>('All');
   const [selectedTaskForComments, setSelectedTaskForComments] = useState<string>(
     tasks[0]?.id || ''
   );
   const [newComment, setNewComment] = useState('');
   const [isSuggestingWork, setIsSuggestingWork] = useState(false);
+  const [dispatchNotice, setDispatchNotice] = useState<string | null>(null);
+  const [showInviteForm, setShowInviteForm] = useState(false);
+  const [inviteName, setInviteName] = useState('');
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState('Software Developer');
+  const [responseNoteDraft, setResponseNoteDraft] = useState<{
+    taskId: string;
+    action: 'resigned' | 'rejected';
+    note: string;
+  } | null>(null);
   const [suggestedWorkResult, setSuggestedWorkResult] = useState<{
     taskTitle: string;
     suggestedAssignee: string;
@@ -44,8 +54,17 @@ export const CollaborationWorkPlot: React.FC<CollaborationWorkPlotProps> = ({
     rationale: string;
   } | null>(null);
 
-  // Filter tasks awaiting user response (From Notes: User -> Accept / Resign / Reject)
-  const pendingTasks = tasks.filter((t) => t.assignmentStatus === 'pending_acceptance');
+  // Filter tasks awaiting response (Manager sees all pending; User sees tasks assigned to them)
+  const pendingTasks = tasks.filter((t) => {
+    if (t.assignmentStatus !== 'pending_acceptance') return false;
+    if (isManager) return true;
+    const firstName = currentUser.name.split(' ')[0].toLowerCase();
+    return (
+      !t.assignedTo ||
+      t.assignedTo.toLowerCase() === currentUser.name.toLowerCase() ||
+      t.assignedTo.toLowerCase().includes(firstName)
+    );
+  });
 
   const activeTask = tasks.find((t) => t.id === selectedTaskForComments) || tasks[0];
 
@@ -79,28 +98,43 @@ export const CollaborationWorkPlot: React.FC<CollaborationWorkPlotProps> = ({
         assignmentStatus: 'pending_acceptance',
         assignedBy: `${currentUser.name} (${currentUser.role})`,
       });
-      alert(`Assigned "${task.title}" to ${suggestedWorkResult.suggestedAssignee}. Awaiting their Accept/Reject response.`);
+      setDispatchNotice(
+        `Assigned "${task.title}" to ${suggestedWorkResult.suggestedAssignee}. Awaiting their Accept/Reject response.`
+      );
       setSuggestedWorkResult(null);
     }
   };
 
-  const handleInviteMember = () => {
-    const name = prompt('Enter Teammate Full Name:');
-    if (!name) return;
-    const email = prompt('Enter Teammate Email:', `${name.toLowerCase().replace(/\s+/g, '.')}@taskgenie.app`);
-    if (!email) return;
-    const role = prompt('Enter Team Role:', 'Junior Engineer');
+  const handleInviteMemberSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inviteName.trim()) return;
+    const cleanName = inviteName.trim();
+    const cleanEmail =
+      inviteEmail.trim() || `${cleanName.toLowerCase().replace(/\s+/g, '.')}@taskgenie.app`;
+    const initials = cleanName
+      .split(' ')
+      .map((p) => p[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
 
     const newMem: TeamMember = {
       id: `mem_${Date.now()}`,
-      name,
-      email,
-      role: role || 'Team Member',
-      avatar: `https://images.unsplash.com/photo-${1530000000000 + Math.floor(Math.random() * 90000000)}?w=120&auto=format&fit=crop&q=80`,
+      name: cleanName,
+      email: cleanEmail,
+      role: inviteRole.trim() || 'Team Member',
+      sharedResponsibility: 'Development & Coding',
+      avatar: `data:image/svg+xml;utf8,${encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"><rect width="120" height="120" rx="28" fill="#27272a"/><text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" fill="#ffffff" font-family="system-ui,sans-serif" font-size="42" font-weight="700">${initials}</text></svg>`
+      )}`,
       completedCount: 0,
-      activeCount: 1,
+      activeCount: 0,
     };
     setTeamMembers([...teamMembers, newMem]);
+    setInviteName('');
+    setInviteEmail('');
+    setShowInviteForm(false);
+    setDispatchNotice(`Added ${cleanName} (${newMem.role}) to Work Plot Team.`);
   };
 
   const handleAddComment = (e: React.FormEvent) => {
@@ -117,14 +151,27 @@ export const CollaborationWorkPlot: React.FC<CollaborationWorkPlotProps> = ({
   };
 
   const handleRespondToTask = (task: TaskItem, response: 'accepted' | 'resigned' | 'rejected') => {
-    const note =
-      response === 'rejected'
-        ? prompt('Reason for rejection:', 'Not enough time this sprint')
-        : response === 'resigned'
-        ? prompt('Reason for resigning:', 'Reallocating bandwidth')
-        : undefined;
+    if (response === 'accepted') {
+      D1TaskStoreService.respondToAssignment(task.id, 'accepted');
+      setResponseNoteDraft(null);
+      return;
+    }
+    setResponseNoteDraft({
+      taskId: task.id,
+      action: response,
+      note: response === 'rejected' ? 'Not enough time this sprint' : 'Reallocating bandwidth',
+    });
+  };
 
-    D1TaskStoreService.respondToAssignment(task.id, response, note || undefined);
+  const handleSubmitResponseNote = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!responseNoteDraft) return;
+    D1TaskStoreService.respondToAssignment(
+      responseNoteDraft.taskId,
+      responseNoteDraft.action,
+      responseNoteDraft.note.trim() || undefined
+    );
+    setResponseNoteDraft(null);
   };
 
   return (
@@ -157,69 +204,94 @@ export const CollaborationWorkPlot: React.FC<CollaborationWorkPlotProps> = ({
       </div>
 
       <div className="p-4 space-y-4">
-        {/* Work Plot Header & AI Work Suggestion */}
-        <div className="bg-gradient-to-br from-indigo-900 via-indigo-800 to-violet-900 dark:from-black dark:via-zinc-900 dark:to-zinc-950 text-white rounded-3xl p-4 shadow-md border border-transparent dark:border-zinc-800">
-          <div className="flex items-start justify-between gap-3 mb-3">
-            <div>
-              <span className="text-[10px] uppercase font-bold text-indigo-300 dark:text-zinc-400 tracking-wider">
-                Work Plot & Team Delegation
-              </span>
-              <h2 className="text-base font-bold text-white dark:text-zinc-100">Ask Genie Work Suggestion</h2>
-              <p className="text-xs text-indigo-200/90 dark:text-zinc-400 mt-0.5">
-                Context diagram Level 0: Manager assign roles & AI work recommendation
-              </p>
-            </div>
-
+        {dispatchNotice && (
+          <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-zinc-900 border border-emerald-200 dark:border-zinc-700 text-xs text-emerald-900 dark:text-zinc-100 flex items-center justify-between gap-2">
+            <span>{dispatchNotice}</span>
             <button
-              disabled={isSuggestingWork}
-              onClick={handleAiSuggestWork}
-              className="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50 shrink-0"
+              onClick={() => setDispatchNotice(null)}
+              className="text-[10px] font-semibold underline shrink-0"
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-900" />
-              <span>{isSuggestingWork ? 'Analyzing...' : 'AI Suggest Work'}</span>
+              Dismiss
             </button>
           </div>
+        )}
 
-          {/* AI Suggestion Display Result */}
-          {suggestedWorkResult && (
-            <div className="bg-white/10 dark:bg-zinc-900/80 backdrop-blur-md rounded-2xl p-3 border border-white/20 dark:border-zinc-700 text-xs space-y-2 mt-2">
-              <div className="flex items-center justify-between">
-                <span className="font-bold text-amber-300 text-xs">Recommended Role Assignment:</span>
-                <span className="text-[10px] text-white/70 dark:text-zinc-400">{suggestedWorkResult.taskTitle}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-white dark:text-zinc-100">{suggestedWorkResult.suggestedAssignee}</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/20 dark:bg-zinc-800 text-white dark:text-zinc-200 font-medium">
-                  {suggestedWorkResult.suggestedRole}
+        {/* Role-specific Header Card: Manager gets AI Work Delegation; User gets Personal Collaboration Summary */}
+        {isManager ? (
+          <div className="bg-gradient-to-br from-zinc-900 via-zinc-900 to-black text-white rounded-3xl p-4 shadow-md border border-zinc-800">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">
+                  Manager Work Plot &amp; Delegation
                 </span>
+                <h2 className="text-base font-bold text-white">Ask Genie Work Suggestion</h2>
+                <p className="text-xs text-zinc-400 mt-0.5">
+                  Context Diagram Level 0: Assign roles &amp; dispatch work across team
+                </p>
               </div>
-              <p className="text-[11px] text-indigo-100 dark:text-zinc-300">{suggestedWorkResult.rationale}</p>
-              <div className="pt-1 flex items-center gap-2">
-                <button
-                  onClick={handleApplyAiSuggestion}
-                  className="px-3 py-1 bg-white dark:bg-zinc-100 text-indigo-900 dark:text-zinc-950 font-semibold rounded-lg text-xs hover:bg-indigo-50 dark:hover:bg-zinc-200 transition-colors"
-                >
-                  Apply & Dispatch to User
-                </button>
-                <button
-                  onClick={() => setSuggestedWorkResult(null)}
-                  className="text-white/70 dark:text-zinc-400 hover:text-white dark:hover:text-zinc-200 text-xs underline"
-                >
-                  Dismiss
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
 
-        {/* Section 2: User -> Accept / Resign / Reject Workflow (From Notes) */}
+              <button
+                disabled={isSuggestingWork}
+                onClick={handleAiSuggestWork}
+                className="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-semibold text-xs transition-colors flex items-center gap-1.5 shadow-sm disabled:opacity-50 shrink-0"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-900" />
+                <span>{isSuggestingWork ? 'Analyzing...' : 'AI Suggest Work'}</span>
+              </button>
+            </div>
+
+            {suggestedWorkResult && (
+              <div className="bg-zinc-950 rounded-2xl p-3 border border-zinc-700 text-xs space-y-2 mt-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-amber-300 text-xs">Recommended Role Assignment:</span>
+                  <span className="text-[10px] text-zinc-400">{suggestedWorkResult.taskTitle}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-white">{suggestedWorkResult.suggestedAssignee}</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-200 font-medium">
+                    {suggestedWorkResult.suggestedRole}
+                  </span>
+                </div>
+                <p className="text-[11px] text-zinc-300">{suggestedWorkResult.rationale}</p>
+                <div className="pt-1 flex items-center gap-2">
+                  <button
+                    onClick={handleApplyAiSuggestion}
+                    className="px-3 py-1 bg-white text-zinc-950 font-semibold rounded-lg text-xs hover:bg-zinc-200 transition-colors"
+                  >
+                    Apply &amp; Dispatch to User
+                  </button>
+                  <button
+                    onClick={() => setSuggestedWorkResult(null)}
+                    className="text-zinc-400 hover:text-white text-xs underline"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="bg-gradient-to-br from-indigo-900 via-indigo-800 to-slate-900 dark:from-zinc-900 dark:via-zinc-900 dark:to-black text-white rounded-3xl p-4 shadow-md border border-transparent dark:border-zinc-800">
+            <span className="text-[10px] uppercase font-bold text-indigo-300 dark:text-zinc-400 tracking-wider">
+              User Team Inbox &amp; Directory
+            </span>
+            <h2 className="text-base font-bold text-white mt-0.5">
+              Collaborate with Your Team
+            </h2>
+            <p className="text-xs text-indigo-100/90 dark:text-zinc-400 mt-0.5">
+              Review manager assignments below (Accept / Resign / Reject) or post updates in task threads.
+            </p>
+          </div>
+        )}
+
+        {/* Section 2: Pending Task Approvals */}
         {pendingTasks.length > 0 && (
           <div className="bg-amber-50 dark:bg-zinc-900 rounded-3xl p-4 border border-amber-200 dark:border-zinc-800 space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <AlertCircle className="w-4 h-4 text-amber-600 dark:text-zinc-300" />
                 <h3 className="text-xs font-bold text-amber-950 dark:text-zinc-100 uppercase tracking-wider">
-                  Pending Task Approvals ({pendingTasks.length})
+                  {isManager ? `Awaiting Member Replies (${pendingTasks.length})` : `My Pending Assignments (${pendingTasks.length})`}
                 </h3>
               </div>
               <span className="text-[10px] text-amber-700 dark:text-zinc-400 font-medium">
@@ -247,29 +319,63 @@ export const CollaborationWorkPlot: React.FC<CollaborationWorkPlotProps> = ({
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-zinc-800">
-                    <button
-                      onClick={() => handleRespondToTask(task, 'accepted')}
-                      className="flex-1 py-1 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs flex items-center justify-center gap-1 transition-colors"
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                      <span>Accept</span>
-                    </button>
-                    <button
-                      onClick={() => handleRespondToTask(task, 'resigned')}
-                      className="flex-1 py-1 px-2.5 rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 font-medium text-xs flex items-center justify-center gap-1 transition-colors"
-                    >
-                      <CornerUpLeft className="w-3.5 h-3.5" />
-                      <span>Resign</span>
-                    </button>
-                    <button
-                      onClick={() => handleRespondToTask(task, 'rejected')}
-                      className="flex-1 py-1 px-2.5 rounded-lg bg-rose-100 dark:bg-zinc-800 text-rose-700 dark:text-zinc-300 hover:bg-rose-200 dark:hover:bg-zinc-700 font-medium text-xs flex items-center justify-center gap-1 transition-colors"
-                    >
-                      <X className="w-3.5 h-3.5" />
-                      <span>Reject</span>
-                    </button>
-                  </div>
+                  {!isManager ? (
+                    <>
+                      <div className="flex items-center gap-2 pt-1 border-t border-slate-100 dark:border-zinc-800">
+                        <button
+                          onClick={() => handleRespondToTask(task, 'accepted')}
+                          className="flex-1 py-1 px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-medium text-xs flex items-center justify-center gap-1 transition-colors"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Accept</span>
+                        </button>
+                        <button
+                          onClick={() => handleRespondToTask(task, 'resigned')}
+                          className="flex-1 py-1 px-2.5 rounded-lg bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 hover:bg-slate-200 dark:hover:bg-zinc-700 font-medium text-xs flex items-center justify-center gap-1 transition-colors"
+                        >
+                          <CornerUpLeft className="w-3.5 h-3.5" />
+                          <span>Resign</span>
+                        </button>
+                        <button
+                          onClick={() => handleRespondToTask(task, 'rejected')}
+                          className="flex-1 py-1 px-2.5 rounded-lg bg-rose-100 dark:bg-zinc-800 text-rose-700 dark:text-zinc-300 hover:bg-rose-200 dark:hover:bg-zinc-700 font-medium text-xs flex items-center justify-center gap-1 transition-colors"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          <span>Reject</span>
+                        </button>
+                      </div>
+
+                      {responseNoteDraft && responseNoteDraft.taskId === task.id && (
+                        <form onSubmit={handleSubmitResponseNote} className="mt-2 pt-2 border-t border-slate-100 dark:border-zinc-800 flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            value={responseNoteDraft.note}
+                            onChange={(e) =>
+                              setResponseNoteDraft({ ...responseNoteDraft, note: e.target.value })
+                            }
+                            placeholder="Optional note for Manager..."
+                            className="flex-1 px-2.5 py-1 text-[11px] rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 text-slate-900 dark:text-zinc-100"
+                          />
+                          <button
+                            type="submit"
+                            className="px-2.5 py-1 rounded-lg bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950 text-[11px] font-semibold"
+                          >
+                            Confirm
+                          </button>
+                        </form>
+                      )}
+                    </>
+                  ) : (
+                    <div className="pt-1 border-t border-slate-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
+                      <span>Pending member response</span>
+                      <button
+                        onClick={() => onSelectTask(task)}
+                        className="font-semibold text-indigo-600 dark:text-zinc-200 hover:underline"
+                      >
+                        Edit / Reassign
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -284,17 +390,59 @@ export const CollaborationWorkPlot: React.FC<CollaborationWorkPlotProps> = ({
                 Work Plot Team ({teamMembers.length})
               </h3>
               <p className="text-[10px] text-slate-400 dark:text-zinc-400">
-                Teamwork Invite & Workload Analysis · All share Development & Coding
+                Teamwork Roster · All share Development &amp; Coding
               </p>
             </div>
-            <button
-              onClick={handleInviteMember}
-              className="px-2.5 py-1 text-xs font-semibold bg-indigo-50 dark:bg-zinc-800 text-indigo-700 dark:text-zinc-200 border border-indigo-200 dark:border-zinc-700 rounded-lg hover:bg-indigo-100 dark:hover:bg-zinc-700 transition-colors flex items-center gap-1"
-            >
-              <UserPlus className="w-3.5 h-3.5" />
-              <span>Invite</span>
-            </button>
+            {isManager && (
+              <button
+                onClick={() => setShowInviteForm((v) => !v)}
+                className="px-2.5 py-1 text-xs font-semibold bg-indigo-50 dark:bg-zinc-800 text-indigo-700 dark:text-zinc-200 border border-indigo-200 dark:border-zinc-700 rounded-lg hover:bg-indigo-100 dark:hover:bg-zinc-700 transition-colors flex items-center gap-1"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>{showInviteForm ? 'Close' : 'Invite'}</span>
+              </button>
+            )}
           </div>
+
+          {isManager && showInviteForm && (
+            <form
+              onSubmit={handleInviteMemberSubmit}
+              className="p-3 rounded-2xl bg-slate-50 dark:bg-black border border-slate-200 dark:border-zinc-800 space-y-2 text-xs"
+            >
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  required
+                  placeholder="Full name"
+                  value={inviteName}
+                  onChange={(e) => setInviteName(e.target.value)}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100"
+                />
+                <input
+                  type="text"
+                  placeholder="Role title"
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value)}
+                  className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <input
+                  type="email"
+                  placeholder="Email (optional)"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  className="flex-1 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-slate-900 dark:text-zinc-100"
+                />
+                <button
+                  type="submit"
+                  className="px-3 py-1.5 rounded-lg bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 font-semibold"
+                >
+                  Add Member
+                </button>
+              </div>
+            </form>
+          )}
 
           <div className="space-y-2">
             {teamMembers.map((member) => {

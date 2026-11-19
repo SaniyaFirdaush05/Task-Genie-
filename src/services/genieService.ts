@@ -34,6 +34,9 @@ export interface ProductivityInsightsResponse {
 }
 
 export class GenieService {
+  private static smartSortCache = new Map<string, SmartSortResult>();
+  private static insightsCache = new Map<string, ProductivityInsightsResponse>();
+
   private static async callApi(action: string, payload: any) {
     try {
       const response = await fetch('/api/ask-genie', {
@@ -342,6 +345,12 @@ export class GenieService {
       assignmentStatus: t.assignmentStatus,
     }));
 
+    const cacheKey = JSON.stringify({ todayStr, compactTasks, patterns });
+    const cached = this.smartSortCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const res = await this.callApi('smart_sort', {
       taskData: {
         currentDate: todayStr,
@@ -393,7 +402,7 @@ export class GenieService {
         }
       }
 
-      return {
+      const computedResult: SmartSortResult = {
         orderedTaskIds: orderedIds,
         strategySummary:
           typeof res.data.strategySummary === 'string' && res.data.strategySummary.trim()
@@ -403,22 +412,32 @@ export class GenieService {
         source: res.source === 'gemini' ? 'gemini' : 'heuristic',
         analyzedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
+      this.smartSortCache.set(cacheKey, computedResult);
+      return computedResult;
     }
 
+    this.smartSortCache.set(cacheKey, localResult);
     return localResult;
   }
 
   static async getProductivityInsights(stats: { total: number; completed: number; overdue: number; focusMinutes: number }): Promise<ProductivityInsightsResponse> {
+    const cacheKey = JSON.stringify(stats);
+    const cached = this.insightsCache.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const res = await this.callApi('productivity_insights', {
       taskData: stats,
     });
 
     if (res && res.data && res.data.score !== undefined) {
+      this.insightsCache.set(cacheKey, res.data);
       return res.data;
     }
 
     const completionRate = stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 75;
-    return {
+    const fallback: ProductivityInsightsResponse = {
       score: Math.min(100, Math.max(50, completionRate + 15)),
       status: completionRate >= 60 ? 'Optimal Flow State' : 'Steady Progress',
       insights: [
@@ -428,6 +447,8 @@ export class GenieService {
       ],
       actionableTip: 'Keep active tasks below 4 concurrent items to preserve deep focus mode.',
     };
+    this.insightsCache.set(cacheKey, fallback);
+    return fallback;
   }
 
   static async chat(message: string, contextTasks: any[]): Promise<string> {

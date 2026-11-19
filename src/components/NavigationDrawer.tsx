@@ -26,13 +26,23 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  const navItems = [
-    { id: 'tasks', label: 'Tasks Dashboard', icon: CheckSquare, badge: 'Main' },
-    { id: 'calendar', label: 'Scheduling & Calendar', icon: Calendar, badge: 'L1 DFD' },
-    { id: 'collaboration', label: 'Collaboration (Work Plot)', icon: Users, badge: 'Team' },
-    { id: 'focus', label: 'Focus Mode (Pomodoro FM)', icon: Timer, badge: 'Spec' },
-    { id: 'analytics', label: 'Analytics & Reports', icon: BarChart3, badge: 'PDF' },
-  ] as const;
+  const isManager = currentUser.role === 'manager';
+
+  const navItems = isManager
+    ? ([
+        { id: 'tasks', label: 'Command Center', icon: Shield, badge: 'Manager' },
+        { id: 'collaboration', label: 'Work Plot & Delegation', icon: Users, badge: 'Team' },
+        { id: 'calendar', label: 'Team Schedule', icon: Calendar, badge: 'L1 DFD' },
+        { id: 'analytics', label: 'Team Analytics & PDF', icon: BarChart3, badge: 'PDF' },
+        { id: 'focus', label: 'Focus Mode (FM)', icon: Timer, badge: '45m' },
+      ] as const)
+    : ([
+        { id: 'tasks', label: 'My Tasks Workspace', icon: CheckSquare, badge: 'Personal' },
+        { id: 'calendar', label: 'My Calendar', icon: Calendar, badge: 'L1 DFD' },
+        { id: 'focus', label: 'Focus Mode (Pomodoro FM)', icon: Timer, badge: 'Music' },
+        { id: 'collaboration', label: 'Work Inbox & Team', icon: Users, badge: 'Inbox' },
+        { id: 'analytics', label: 'My Performance & PDF', icon: BarChart3, badge: 'PDF' },
+      ] as const);
 
   return (
     <div className="fixed inset-0 z-50 flex">
@@ -46,7 +56,13 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
       <div className="relative w-72 max-w-[80%] h-full bg-white dark:bg-black shadow-2xl flex flex-col justify-between z-10 animate-in slide-in-from-left duration-200 border-r border-transparent dark:border-zinc-800">
         <div>
           {/* Header Profile Section */}
-          <div className="p-4 bg-slate-900 dark:bg-zinc-900 text-white relative border-b border-transparent dark:border-zinc-800">
+          <div
+            className={`p-4 text-white relative border-b ${
+              isManager
+                ? 'bg-gradient-to-br from-teal-950 via-teal-900 to-slate-900 border-teal-800/70'
+                : 'bg-gradient-to-br from-indigo-900 via-indigo-800 to-slate-900 border-indigo-800/50 dark:border-zinc-800'
+            }`}
+          >
             <button
               onClick={onClose}
               className="absolute top-3 right-3 text-white/80 hover:text-white p-1 rounded-lg hover:bg-white/10 transition-colors"
@@ -65,7 +81,11 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
               <div className="min-w-0">
                 <h3 className="font-bold text-sm truncate">{currentUser.name}</h3>
                 <p className="text-[11px] text-white/80 truncate">{currentUser.email}</p>
-                <div className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/20 text-[10px] font-medium backdrop-blur-xs uppercase">
+                <div
+                  className={`mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase ${
+                    isManager ? 'bg-amber-400 text-zinc-950' : 'bg-white/20 text-white backdrop-blur-xs'
+                  }`}
+                >
                   {currentUser.role === 'manager' ? (
                     <>
                       <Shield className="w-3 h-3" />
@@ -104,12 +124,22 @@ export const NavigationDrawer: React.FC<NavigationDrawerProps> = ({
                   }}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
                     isActive
-                      ? 'bg-zinc-100 dark:bg-zinc-900 text-slate-900 dark:text-white font-semibold border border-transparent dark:border-zinc-800'
+                      ? isManager
+                        ? 'bg-teal-50 dark:bg-teal-950/60 text-teal-900 dark:text-teal-200 font-semibold border border-teal-200 dark:border-teal-800/70'
+                        : 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-900 dark:text-indigo-200 font-semibold border border-indigo-200 dark:border-indigo-800/60'
                       : 'text-slate-700 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-900 dark:hover:text-zinc-200'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Icon className={`w-4 h-4 ${isActive ? 'text-zinc-900 dark:text-zinc-100' : 'text-slate-400 dark:text-zinc-500'}`} />
+                    <Icon
+                      className={`w-4 h-4 ${
+                        isActive
+                          ? isManager
+                            ? 'text-teal-700 dark:text-amber-300'
+                            : 'text-indigo-600 dark:text-indigo-300'
+                          : 'text-slate-400 dark:text-zinc-500'
+                      }`}
+                    />
                     <span>{item.label}</span>
                   </div>
                   <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 border border-transparent dark:border-zinc-800">

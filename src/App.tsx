@@ -11,6 +11,7 @@ import { LoginScreen } from './components/LoginScreen';
 import { TopAppBar } from './components/TopAppBar';
 import { NavigationDrawer } from './components/NavigationDrawer';
 import { TaskDashboard } from './components/TaskDashboard';
+import { ManagerDashboard } from './components/ManagerDashboard';
 import { TaskModal } from './components/TaskModal';
 import { CalendarModule } from './components/CalendarModule';
 import { CollaborationWorkPlot } from './components/CollaborationWorkPlot';
@@ -27,6 +28,7 @@ import {
   Timer,
   BarChart3,
   Sparkles,
+  Shield,
 } from 'lucide-react';
 
 export default function App() {
@@ -126,7 +128,6 @@ export default function App() {
   return (
     <AndroidFrame
       onResetDemoData={handleResetDemoData}
-      onOpenArchitectureModal={() => setIsArchitectureModalOpen(true)}
       onOpenGenie={() => setIsGenieDrawerOpen(true)}
     >
       {/* 1. If not logged in, render Login System first as requested */}
@@ -153,22 +154,33 @@ export default function App() {
 
           {/* Active Screen Content */}
           <div className="flex-1 w-full flex flex-col overflow-hidden relative">
-            {activeScreen === 'tasks' && (
-              <TaskDashboard
-                tasks={tasks}
-                currentUser={currentUser}
-                onOpenCreateTask={handleOpenCreateTask}
-                onEditTask={handleEditTask}
-                onStartFocus={handleStartFocus}
-                onOpenGenieWithTask={(task) => {
-                  setSelectedTaskForFocus(task);
-                  setIsGenieDrawerOpen(true);
-                }}
-                onSelectTab={(tab) => setActiveScreen(tab)}
-                activeMainTab={activeScreen}
-                isFilterOpen={isFilterOpen}
-              />
-            )}
+            {activeScreen === 'tasks' &&
+              (currentUser.role === 'manager' ? (
+                <ManagerDashboard
+                  tasks={tasks}
+                  currentUser={currentUser}
+                  onOpenCreateTask={handleOpenCreateTask}
+                  onEditTask={handleEditTask}
+                  onSelectTab={(tab) => setActiveScreen(tab)}
+                  activeMainTab={activeScreen}
+                  isFilterOpen={isFilterOpen}
+                />
+              ) : (
+                <TaskDashboard
+                  tasks={tasks}
+                  currentUser={currentUser}
+                  onOpenCreateTask={handleOpenCreateTask}
+                  onEditTask={handleEditTask}
+                  onStartFocus={handleStartFocus}
+                  onOpenGenieWithTask={(task) => {
+                    setSelectedTaskForFocus(task);
+                    setIsGenieDrawerOpen(true);
+                  }}
+                  onSelectTab={(tab) => setActiveScreen(tab)}
+                  activeMainTab={activeScreen}
+                  isFilterOpen={isFilterOpen}
+                />
+              ))}
 
             {activeScreen === 'calendar' && (
               <CalendarModule
@@ -209,78 +221,146 @@ export default function App() {
           <div className="absolute right-4 bottom-18 z-30">
             <button
               onClick={() => setIsGenieDrawerOpen(true)}
-              className="w-13 h-13 rounded-full bg-slate-900 dark:bg-zinc-100 text-white dark:text-zinc-950 shadow-xl shadow-black/40 flex items-center justify-center hover:scale-105 active:scale-95 transition-all ring-4 ring-white dark:ring-black border border-zinc-700 dark:border-transparent group"
+              className={`w-13 h-13 rounded-full shadow-xl shadow-black/40 flex items-center justify-center hover:scale-105 active:scale-95 transition-all ring-4 ring-white dark:ring-black border group ${
+                currentUser.role === 'manager'
+                  ? 'bg-teal-900 text-amber-300 border-teal-700'
+                  : 'bg-indigo-600 dark:bg-indigo-500 text-white border-indigo-500 dark:border-transparent'
+              }`}
               title="Open Ask Genie AI Assistant"
             >
               <div className="flex flex-col items-center justify-center leading-none">
-                <Sparkles className="w-5 h-5 text-amber-400 dark:text-zinc-900 animate-pulse" />
+                <Sparkles className="w-5 h-5 animate-pulse" />
                 <span className="text-[9px] font-black tracking-tighter mt-0.5">AI</span>
               </div>
             </button>
           </div>
 
-          {/* Android Bottom Navigation Bar (Pattern 1 from Mobile touch guideline) */}
-          <div className="w-full h-15 bg-white/95 dark:bg-black/95 backdrop-blur-md border-t border-slate-200/80 dark:border-zinc-800 grid grid-cols-5 items-center px-1 shrink-0 z-20">
-            <button
-              onClick={() => setActiveScreen('tasks')}
-              className={`flex flex-col items-center justify-center h-full transition-colors ${
-                activeScreen === 'tasks'
-                  ? 'text-slate-900 dark:text-white font-semibold'
-                  : 'text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300'
-              }`}
-            >
-              <CheckSquare className="w-5 h-5" />
-              <span className="text-[10px] font-medium tracking-tight mt-1">Tasks</span>
-            </button>
+          {/* Role-Specific Bottom Navigation Bar */}
+          {currentUser.role === 'manager' ? (
+            <div className="w-full h-15 bg-gradient-to-r from-teal-950 via-teal-900 to-slate-900 backdrop-blur-md border-t border-teal-800/80 grid grid-cols-5 items-center px-1 shrink-0 z-20">
+              <button
+                onClick={() => setActiveScreen('tasks')}
+                className={`flex flex-col items-center justify-center h-full transition-colors ${
+                  activeScreen === 'tasks'
+                    ? 'text-amber-300 font-semibold'
+                    : 'text-teal-200/65 hover:text-white'
+                }`}
+              >
+                <Shield className="w-5 h-5" />
+                <span className="text-[10px] font-medium tracking-tight mt-1">Command</span>
+              </button>
 
-            <button
-              onClick={() => setActiveScreen('calendar')}
-              className={`flex flex-col items-center justify-center h-full transition-colors ${
-                activeScreen === 'calendar'
-                  ? 'text-slate-900 dark:text-white font-semibold'
-                  : 'text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300'
-              }`}
-            >
-              <CalendarNavIcon className="w-5 h-5" />
-              <span className="text-[10px] font-medium tracking-tight mt-1">Calendar</span>
-            </button>
+              <button
+                onClick={() => setActiveScreen('collaboration')}
+                className={`flex flex-col items-center justify-center h-full transition-colors ${
+                  activeScreen === 'collaboration'
+                    ? 'text-amber-300 font-semibold'
+                    : 'text-teal-200/65 hover:text-white'
+                }`}
+              >
+                <Users className="w-5 h-5" />
+                <span className="text-[10px] font-medium tracking-tight mt-1">Work Plot</span>
+              </button>
 
-            <button
-              onClick={() => setActiveScreen('collaboration')}
-              className={`flex flex-col items-center justify-center h-full transition-colors ${
-                activeScreen === 'collaboration'
-                  ? 'text-slate-900 dark:text-white font-semibold'
-                  : 'text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300'
-              }`}
-            >
-              <Users className="w-5 h-5" />
-              <span className="text-[10px] font-medium tracking-tight mt-1">Team</span>
-            </button>
+              <button
+                onClick={() => setActiveScreen('calendar')}
+                className={`flex flex-col items-center justify-center h-full transition-colors ${
+                  activeScreen === 'calendar'
+                    ? 'text-amber-300 font-semibold'
+                    : 'text-teal-200/65 hover:text-white'
+                }`}
+              >
+                <CalendarNavIcon className="w-5 h-5" />
+                <span className="text-[10px] font-medium tracking-tight mt-1">Schedule</span>
+              </button>
 
-            <button
-              onClick={() => setActiveScreen('focus')}
-              className={`flex flex-col items-center justify-center h-full transition-colors ${
-                activeScreen === 'focus'
-                  ? 'text-slate-900 dark:text-white font-semibold'
-                  : 'text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300'
-              }`}
-            >
-              <Timer className="w-5 h-5" />
-              <span className="text-[10px] font-medium tracking-tight mt-1">Focus FM</span>
-            </button>
+              <button
+                onClick={() => setActiveScreen('analytics')}
+                className={`flex flex-col items-center justify-center h-full transition-colors ${
+                  activeScreen === 'analytics'
+                    ? 'text-amber-300 font-semibold'
+                    : 'text-teal-200/65 hover:text-white'
+                }`}
+              >
+                <BarChart3 className="w-5 h-5" />
+                <span className="text-[10px] font-medium tracking-tight mt-1">Team PDF</span>
+              </button>
 
-            <button
-              onClick={() => setActiveScreen('analytics')}
-              className={`flex flex-col items-center justify-center h-full transition-colors ${
-                activeScreen === 'analytics'
-                  ? 'text-slate-900 dark:text-white font-semibold'
-                  : 'text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300'
-              }`}
-            >
-              <BarChart3 className="w-5 h-5" />
-              <span className="text-[10px] font-medium tracking-tight mt-1">Reports</span>
-            </button>
-          </div>
+              <button
+                onClick={() => setActiveScreen('focus')}
+                className={`flex flex-col items-center justify-center h-full transition-colors ${
+                  activeScreen === 'focus'
+                    ? 'text-amber-300 font-semibold'
+                    : 'text-teal-200/65 hover:text-white'
+                }`}
+              >
+                <Timer className="w-5 h-5" />
+                <span className="text-[10px] font-medium tracking-tight mt-1">Focus FM</span>
+              </button>
+            </div>
+          ) : (
+            <div className="w-full h-15 bg-white/95 dark:bg-black/95 backdrop-blur-md border-t border-indigo-100 dark:border-zinc-800 grid grid-cols-5 items-center px-1 shrink-0 z-20">
+              <button
+                onClick={() => setActiveScreen('tasks')}
+                className={`flex flex-col items-center justify-center h-full transition-colors ${
+                  activeScreen === 'tasks'
+                    ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
+                    : 'text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300'
+                }`}
+              >
+                <CheckSquare className="w-5 h-5" />
+                <span className="text-[10px] font-medium tracking-tight mt-1">My Tasks</span>
+              </button>
+
+              <button
+                onClick={() => setActiveScreen('calendar')}
+                className={`flex flex-col items-center justify-center h-full transition-colors ${
+                  activeScreen === 'calendar'
+                    ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
+                    : 'text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300'
+                }`}
+              >
+                <CalendarNavIcon className="w-5 h-5" />
+                <span className="text-[10px] font-medium tracking-tight mt-1">Calendar</span>
+              </button>
+
+              <button
+                onClick={() => setActiveScreen('focus')}
+                className={`flex flex-col items-center justify-center h-full transition-colors ${
+                  activeScreen === 'focus'
+                    ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
+                    : 'text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300'
+                }`}
+              >
+                <Timer className="w-5 h-5" />
+                <span className="text-[10px] font-medium tracking-tight mt-1">Focus FM</span>
+              </button>
+
+              <button
+                onClick={() => setActiveScreen('collaboration')}
+                className={`flex flex-col items-center justify-center h-full transition-colors ${
+                  activeScreen === 'collaboration'
+                    ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
+                    : 'text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300'
+                }`}
+              >
+                <Users className="w-5 h-5" />
+                <span className="text-[10px] font-medium tracking-tight mt-1">Inbox</span>
+              </button>
+
+              <button
+                onClick={() => setActiveScreen('analytics')}
+                className={`flex flex-col items-center justify-center h-full transition-colors ${
+                  activeScreen === 'analytics'
+                    ? 'text-indigo-600 dark:text-indigo-400 font-semibold'
+                    : 'text-slate-400 hover:text-slate-600 dark:text-zinc-500 dark:hover:text-zinc-300'
+                }`}
+              >
+                <BarChart3 className="w-5 h-5" />
+                <span className="text-[10px] font-medium tracking-tight mt-1">Reports</span>
+              </button>
+            </div>
+          )}
 
           {/* Navigation Drawer Menu */}
           <NavigationDrawer
@@ -298,6 +378,7 @@ export default function App() {
           <TaskModal
             isOpen={isCreateModalOpen}
             onClose={() => setIsCreateModalOpen(false)}
+            currentUser={currentUser}
             taskToEdit={taskToEdit}
             initialTitleTemplate={initialTemplate}
             initialDueDate={initialDueDate}

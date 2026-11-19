@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { TaskItem, TaskCategory, Priority, Subtask, Attachment } from '../types/task';
+import { TaskItem, TaskCategory, Priority, Subtask, Attachment, UserProfile } from '../types/task';
 import { D1TaskStoreService, INITIAL_TEAM_MEMBERS } from '../store/taskStore';
 import { GenieService } from '../services/genieService';
 import { X, Sparkles, Plus, Trash2, Paperclip, Repeat, Calendar, Clock, Check } from 'lucide-react';
@@ -7,6 +7,7 @@ import { X, Sparkles, Plus, Trash2, Paperclip, Repeat, Calendar, Clock, Check } 
 interface TaskModalProps {
   isOpen: boolean;
   onClose: () => void;
+  currentUser: UserProfile;
   taskToEdit?: TaskItem | null;
   initialTitleTemplate?: string;
   initialDueDate?: string;
@@ -16,6 +17,7 @@ interface TaskModalProps {
 export const TaskModal: React.FC<TaskModalProps> = ({
   isOpen,
   onClose,
+  currentUser,
   taskToEdit,
   initialTitleTemplate,
   initialDueDate,
@@ -35,7 +37,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [recurringFrequency, setRecurringFrequency] = useState<'daily' | 'weekly' | 'monthly'>(
     taskToEdit?.recurringFrequency || 'weekly'
   );
-  const [assignedTo, setAssignedTo] = useState(taskToEdit?.assignedTo || INITIAL_TEAM_MEMBERS[0].name);
+  const isManager = currentUser.role === 'manager';
+  const [assignedTo, setAssignedTo] = useState(
+    taskToEdit?.assignedTo || (isManager ? INITIAL_TEAM_MEMBERS[0].name : currentUser.name)
+  );
   const [subtasks, setSubtasks] = useState<Subtask[]>(taskToEdit?.subtasks || []);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>(taskToEdit?.attachments || []);
@@ -137,6 +142,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         attachments,
       });
     } else {
+      const isDelegatingToOther = isManager && assignedTo !== currentUser.name;
       D1TaskStoreService.addTask({
         title,
         description,
@@ -148,8 +154,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         isRecurring,
         recurringFrequency: isRecurring ? recurringFrequency : undefined,
         assignedTo,
-        assignedBy: 'Saniya Firdaush (Project Manager)',
-        assignmentStatus: 'accepted',
+        assignedBy: isManager ? `${currentUser.name} (Manager)` : currentUser.name,
+        assignmentStatus: isDelegatingToOther ? 'pending_acceptance' : 'accepted',
         subtasks,
         attachments,
         comments: [],
@@ -170,10 +176,12 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         <div className="p-4 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between">
           <div>
             <h2 className="text-base font-bold text-slate-900 dark:text-zinc-100">
-              {taskToEdit ? 'Edit Task' : 'Create New Task'}
+              {taskToEdit ? 'Edit Task' : isManager ? 'Assign Team Task' : 'Create Personal Task'}
             </h2>
             <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-              Synced directly with D1 TaskStore & Scheduling Module
+              {isManager
+                ? 'Dispatches work assignment & notifies team member'
+                : 'Synced directly with D1 TaskStore & Scheduling Module'}
             </p>
           </div>
           <button
@@ -484,7 +492,13 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               className="px-4 py-2 text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-zinc-200 active:scale-95 text-white rounded-xl shadow-md transition-all flex items-center gap-1.5"
             >
               <Check className="w-3.5 h-3.5" />
-              <span>{taskToEdit ? 'Save Changes' : 'Create Task'}</span>
+              <span>
+                {taskToEdit
+                  ? 'Save Changes'
+                  : isManager && assignedTo !== currentUser.name
+                  ? 'Dispatch Assignment'
+                  : 'Create Task'}
+              </span>
             </button>
           </div>
         </form>

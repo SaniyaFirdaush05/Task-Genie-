@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { TaskItem, UserProfile } from '../types/task';
+import { INITIAL_TEAM_MEMBERS } from '../store/taskStore';
 import { GenieService, ProductivityInsightsResponse } from '../services/genieService';
 import { PdfReportService } from '../services/pdfReportService';
 import {
@@ -29,6 +30,8 @@ interface AnalyticsReportsProps {
 }
 
 export const AnalyticsReports: React.FC<AnalyticsReportsProps> = ({ tasks, currentUser }) => {
+  const isManager = currentUser.role === 'manager';
+  const [reportScope, setReportScope] = useState<'team' | 'mine'>(isManager ? 'team' : 'mine');
   const [timeRange, setTimeRange] = useState<'week' | 'month' | 'all'>('week');
   const [aiInsights, setAiInsights] = useState<ProductivityInsightsResponse | null>(null);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
@@ -39,19 +42,34 @@ export const AnalyticsReports: React.FC<AnalyticsReportsProps> = ({ tasks, curre
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const [exportedFilename, setExportedFilename] = useState<string | null>(null);
 
+  useEffect(() => {
+    setReportScope(isManager ? 'team' : 'mine');
+  }, [isManager]);
+
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // Scope tasks to selected timeRange
+  // Scope tasks to selected reportScope & timeRange
   const scopedTasks = useMemo(() => {
-    if (timeRange === 'all') return tasks;
+    const firstName = currentUser.name.split(' ')[0].toLowerCase();
+    const roleScoped =
+      reportScope === 'team'
+        ? tasks
+        : tasks.filter(
+            (t) =>
+              !t.assignedTo ||
+              t.assignedTo.toLowerCase() === currentUser.name.toLowerCase() ||
+              t.assignedTo.toLowerCase().includes(firstName)
+          );
+
+    if (timeRange === 'all') return roleScoped;
     const now = new Date();
     const maxDays = timeRange === 'week' ? 7 : 30;
-    return tasks.filter((t) => {
+    return roleScoped.filter((t) => {
       const refDate = new Date(t.dueDate || t.createdAt);
       const diffDays = Math.abs((refDate.getTime() - now.getTime()) / (1000 * 3600 * 24));
       return diffDays <= maxDays;
     });
-  }, [tasks, timeRange]);
+  }, [tasks, timeRange, reportScope, currentUser.name]);
 
   const timeRangeLabel =
     timeRange === 'week' ? 'This Week' : timeRange === 'month' ? 'This Month' : 'All Time';
@@ -221,19 +239,19 @@ export const AnalyticsReports: React.FC<AnalyticsReportsProps> = ({ tasks, curre
   return (
     <div className="flex-1 w-full flex flex-col p-4 overflow-y-auto space-y-4">
       {/* Header & Export PDF Button */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <div>
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500">
-            Performance Analytics & Reports
+            {isManager ? 'Manager Team Analytics & Reports' : 'Personal Analytics & Reports'}
           </span>
           <h2 className="text-base font-bold text-slate-900 dark:text-zinc-100">
-            Productivity Intelligence
+            {reportScope === 'team' ? 'Team Performance Report' : 'My Productivity Report'}
           </h2>
         </div>
 
         <button
           onClick={handleOpenPdfExport}
-          className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition-all"
+          className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition-all shrink-0"
           title="Preview and Download Visual PDF Performance Report"
         >
           <Download className="w-3.5 h-3.5" />
@@ -241,38 +259,63 @@ export const AnalyticsReports: React.FC<AnalyticsReportsProps> = ({ tasks, curre
         </button>
       </div>
 
-      {/* Time Range Filter Bar */}
-      <div className="flex items-center p-1 bg-slate-100 dark:bg-zinc-900 rounded-xl text-xs font-medium border border-transparent dark:border-zinc-800">
-        <button
-          onClick={() => setTimeRange('week')}
-          className={`flex-1 py-1.5 rounded-lg text-center transition-all ${
-            timeRange === 'week'
-              ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 font-bold shadow-xs'
-              : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          This Week
-        </button>
-        <button
-          onClick={() => setTimeRange('month')}
-          className={`flex-1 py-1.5 rounded-lg text-center transition-all ${
-            timeRange === 'month'
-              ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 font-bold shadow-xs'
-              : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          This Month
-        </button>
-        <button
-          onClick={() => setTimeRange('all')}
-          className={`flex-1 py-1.5 rounded-lg text-center transition-all ${
-            timeRange === 'all'
-              ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 font-bold shadow-xs'
-              : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
-          }`}
-        >
-          All Time
-        </button>
+      {/* Role Scope Toggle + Time Range Filter Bar */}
+      <div className="flex items-center gap-2">
+        <div className="flex items-center p-1 bg-slate-100 dark:bg-zinc-900 rounded-xl text-xs font-medium border border-transparent dark:border-zinc-800">
+          <button
+            onClick={() => setReportScope('mine')}
+            className={`px-2.5 py-1.5 rounded-lg transition-all ${
+              reportScope === 'mine'
+                ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 font-bold shadow-xs'
+                : 'text-slate-600 dark:text-zinc-400'
+            }`}
+          >
+            My Tasks
+          </button>
+          <button
+            onClick={() => setReportScope('team')}
+            className={`px-2.5 py-1.5 rounded-lg transition-all ${
+              reportScope === 'team'
+                ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 font-bold shadow-xs'
+                : 'text-slate-600 dark:text-zinc-400'
+            }`}
+          >
+            Team
+          </button>
+        </div>
+
+        <div className="flex-1 flex items-center p-1 bg-slate-100 dark:bg-zinc-900 rounded-xl text-xs font-medium border border-transparent dark:border-zinc-800">
+          <button
+            onClick={() => setTimeRange('week')}
+            className={`flex-1 py-1.5 rounded-lg text-center transition-all ${
+              timeRange === 'week'
+                ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 font-bold shadow-xs'
+                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+            }`}
+          >
+            Week
+          </button>
+          <button
+            onClick={() => setTimeRange('month')}
+            className={`flex-1 py-1.5 rounded-lg text-center transition-all ${
+              timeRange === 'month'
+                ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 font-bold shadow-xs'
+                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+            }`}
+          >
+            Month
+          </button>
+          <button
+            onClick={() => setTimeRange('all')}
+            className={`flex-1 py-1.5 rounded-lg text-center transition-all ${
+              timeRange === 'all'
+                ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 font-bold shadow-xs'
+                : 'text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200'
+            }`}
+          >
+            All
+          </button>
+        </div>
       </div>
 
       {/* Performance Score Radial Gauge Card */}
@@ -612,6 +655,49 @@ export const AnalyticsReports: React.FC<AnalyticsReportsProps> = ({ tasks, curre
           </div>
         </div>
       </div>
+
+      {/* Manager Team Breakdown Card when viewing Team scope */}
+      {reportScope === 'team' && (
+        <div className="bg-white dark:bg-zinc-900 rounded-3xl p-4 border border-slate-200/80 dark:border-zinc-800 shadow-xs space-y-2.5">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xs font-bold text-slate-900 dark:text-zinc-100 uppercase tracking-wider">
+              Team Member Performance Breakdown
+            </h3>
+            <span className="text-[10px] text-slate-400 dark:text-zinc-500">
+              {INITIAL_TEAM_MEMBERS.length} members
+            </span>
+          </div>
+          <div className="space-y-2">
+            {INITIAL_TEAM_MEMBERS.map((member) => {
+              const memberTasks = scopedTasks.filter((t) => t.assignedTo === member.name);
+              const done = memberTasks.filter((t) => t.status === 'completed').length;
+              const focusMins = memberTasks.reduce((s, t) => s + (t.focusMinutesSpent || 0), 0);
+              const pct = memberTasks.length > 0 ? Math.round((done / memberTasks.length) * 100) : 0;
+              return (
+                <div key={member.id} className="space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-slate-800 dark:text-zinc-200 truncate">
+                      {member.name}{' '}
+                      <span className="text-[10px] font-normal text-slate-400 dark:text-zinc-500">
+                        ({member.role})
+                      </span>
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-500 dark:text-zinc-400 shrink-0">
+                      {done}/{memberTasks.length} done · {focusMins}m
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-100 dark:bg-zinc-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-emerald-500 dark:bg-zinc-200 rounded-full transition-all"
+                      style={{ width: `${Math.max(pct, memberTasks.length > 0 ? 8 : 0)}%` }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* GRAPH 3: Time Spent & Category Resource Allocation */}
       <div className="bg-white dark:bg-zinc-900 rounded-3xl p-4 border border-slate-200/80 dark:border-zinc-800 shadow-xs space-y-3">
