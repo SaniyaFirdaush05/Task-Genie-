@@ -17,7 +17,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onOpen
 
   const handleDemoLogin = (memberId: string) => {
     const member = INITIAL_TEAM_MEMBERS.find((m) => m.id === memberId) || INITIAL_TEAM_MEMBERS[0];
-    const role: UserRole = member.id === 'mem_2' ? 'manager' : 'user';
+    const role: UserRole = member.role === 'Project Manager' ? 'manager' : 'user';
     const profile: UserProfile = {
       id: member.id,
       name: member.name,
@@ -31,19 +31,20 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onOpen
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const finalName = name.trim() || (selectedRole === 'manager' ? 'Alex Rivera' : 'Sarah Chen');
-    const finalEmail = email.trim() || (selectedRole === 'manager' ? 'manager@taskgenie.app' : 'user@taskgenie.app');
+    const defaultMember =
+      selectedRole === 'manager'
+        ? INITIAL_TEAM_MEMBERS.find((m) => m.role === 'Project Manager') || INITIAL_TEAM_MEMBERS[2]
+        : INITIAL_TEAM_MEMBERS[0];
+    const finalName = name.trim() || defaultMember.name;
+    const finalEmail = email.trim() || defaultMember.email;
 
     const profile: UserProfile = {
       id: `user_${Date.now()}`,
       name: finalName,
       email: finalEmail,
       role: selectedRole,
-      avatar:
-        selectedRole === 'manager'
-          ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80'
-          : 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
-      title: selectedRole === 'manager' ? 'Operations Manager' : 'Task Specialist',
+      avatar: defaultMember.avatar,
+      title: selectedRole === 'manager' ? 'Project Manager' : 'Project Analyst',
     };
     onLoginSuccess(profile);
   };
@@ -113,27 +114,27 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onOpen
               onClick={() => handleDemoLogin('mem_1')}
               className="p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-black hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all text-left flex flex-col items-start group"
             >
-              <div className="flex items-center gap-1.5 mb-1">
+                <div className="flex items-center gap-1.5 mb-1">
                 <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                 <span className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-zinc-300">
-                  Sarah Chen
+                  Jyoti Kumari
                 </span>
               </div>
-              <span className="text-[10px] text-slate-500 dark:text-zinc-400">User Role (Tasks & FM)</span>
+              <span className="text-[10px] text-slate-500 dark:text-zinc-400">Project Analyst (Tasks)</span>
             </button>
 
             <button
               type="button"
-              onClick={() => handleDemoLogin('mem_2')}
+              onClick={() => handleDemoLogin('mem_3')}
               className="p-2.5 rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-black hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all text-left flex flex-col items-start group"
             >
               <div className="flex items-center gap-1.5 mb-1">
                 <span className="w-2 h-2 rounded-full bg-zinc-400"></span>
                 <span className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-zinc-300">
-                  Alex Rivera
+                  Saniya Firdaush
                 </span>
               </div>
-              <span className="text-[10px] text-slate-500 dark:text-zinc-400">Manager (Work Plot)</span>
+              <span className="text-[10px] text-slate-500 dark:text-zinc-400">Project Manager</span>
             </button>
           </div>
         </div>
@@ -156,7 +157,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess, onOpen
               </label>
               <input
                 type="text"
-                placeholder={selectedRole === 'manager' ? 'e.g. Alex Rivera' : 'e.g. Sarah Chen'}
+                placeholder={selectedRole === 'manager' ? 'e.g. Saniya Firdaush' : 'e.g. Jyoti Kumari'}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-black text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-zinc-500"

@@ -5,42 +5,79 @@ const USER_STORAGE_KEY = 'task_genie_current_user_v1';
 const ALERTS_STORAGE_KEY = 'task_genie_alerts_v1';
 const DAILY_GOAL_STORAGE_KEY = 'task_genie_daily_goal_v1';
 
+const makeAvatar = (initials: string, bgStart: string, bgEnd: string) =>
+  `data:image/svg+xml;utf8,${encodeURIComponent(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="${bgStart}"/><stop offset="100%" stop-color="${bgEnd}"/></linearGradient></defs><rect width="120" height="120" rx="28" fill="url(#g)"/><text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" fill="#ffffff" font-family="system-ui,-apple-system,sans-serif" font-size="42" font-weight="700">${initials}</text></svg>`
+  )}`;
+
+const LEGACY_MEMBER_MAP: Record<string, string> = {
+  'Sarah Chen': 'Jyoti Kumari',
+  'Alex Rivera': 'Saniya Firdaush',
+  'David Kim': 'Utpreksha Kashyap',
+  'Emma Watson': 'Shambhavi Maddheshiya',
+};
+
+const normalizeLegacyName = (value?: string): string | undefined => {
+  if (!value) return value;
+  let updated = value;
+  for (const [oldName, newName] of Object.entries(LEGACY_MEMBER_MAP)) {
+    if (updated.includes(oldName)) {
+      updated = updated.replaceAll(oldName, newName);
+    }
+  }
+  return updated;
+};
+
 export const INITIAL_TEAM_MEMBERS: TeamMember[] = [
   {
     id: 'mem_1',
-    name: 'Sarah Chen',
-    email: 'sarah.chen@taskgenie.app',
-    role: 'Lead UX Specialist',
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
-    completedCount: 14,
-    activeCount: 3,
+    name: 'Jyoti Kumari',
+    email: 'jyoti.kumari@taskgenie.app',
+    role: 'Project Analyst',
+    sharedResponsibility: 'Development & Coding',
+    avatar: makeAvatar('JK', '#334155', '#0f172a'),
+    completedCount: 0,
+    activeCount: 0,
   },
   {
     id: 'mem_2',
-    name: 'Alex Rivera',
-    email: 'alex.rivera@taskgenie.app',
-    role: 'Project Manager',
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
-    completedCount: 22,
-    activeCount: 5,
+    name: 'Shambhavi Maddheshiya',
+    email: 'shambhavi.maddheshiya@taskgenie.app',
+    role: 'Requirement Analyst',
+    sharedResponsibility: 'Development & Coding',
+    avatar: makeAvatar('SM', '#3f3f46', '#18181b'),
+    completedCount: 0,
+    activeCount: 0,
   },
   {
     id: 'mem_3',
-    name: 'David Kim',
-    email: 'david.kim@taskgenie.app',
-    role: 'Full Stack Engineer',
-    avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80',
-    completedCount: 19,
-    activeCount: 4,
+    name: 'Saniya Firdaush',
+    email: 'saniya.firdaush@taskgenie.app',
+    role: 'Project Manager',
+    sharedResponsibility: 'Development & Coding',
+    avatar: makeAvatar('SF', '#312e81', '#1e1b4b'),
+    completedCount: 0,
+    activeCount: 0,
   },
   {
     id: 'mem_4',
-    name: 'Emma Watson',
-    email: 'emma.watson@taskgenie.app',
-    role: 'Content & Strategy Analyst',
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=120&auto=format&fit=crop&q=80',
-    completedCount: 16,
-    activeCount: 2,
+    name: 'Utpreksha Kashyap',
+    email: 'utpreksha.kashyap@taskgenie.app',
+    role: 'System Designer',
+    sharedResponsibility: 'Development & Coding',
+    avatar: makeAvatar('UK', '#27272a', '#09090b'),
+    completedCount: 0,
+    activeCount: 0,
+  },
+  {
+    id: 'mem_5',
+    name: 'Riya Pant',
+    email: 'riya.pant@taskgenie.app',
+    role: 'QA Engineer',
+    sharedResponsibility: 'Development & Coding',
+    avatar: makeAvatar('RP', '#475569', '#1e293b'),
+    completedCount: 0,
+    activeCount: 0,
   },
 ];
 
@@ -72,20 +109,20 @@ export const INITIAL_TASKS: TaskItem[] = [
       { id: 'att_1', name: 'Q4_Roadmap_Draft.pptx', size: '4.2 MB', type: 'presentation' },
       { id: 'att_2', name: 'Context_Diagram_Rough.png', size: '1.8 MB', type: 'image' },
     ],
-    assignedTo: 'Sarah Chen',
-    assignedBy: 'Alex Rivera',
+    assignedTo: 'Jyoti Kumari',
+    assignedBy: 'Saniya Firdaush',
     assignmentStatus: 'accepted',
     comments: [
       {
         id: 'c_1',
-        authorName: 'Alex Rivera',
+        authorName: 'Saniya Firdaush',
         authorRole: 'manager',
         text: 'Please make sure slide 5 highlights the Ask Genie AI subtask division capabilities.',
         timestamp: '10:30 AM',
       },
       {
         id: 'c_2',
-        authorName: 'Sarah Chen',
+        authorName: 'Jyoti Kumari',
         authorRole: 'user',
         text: 'On it! Already finished the first two sections.',
         timestamp: '11:15 AM',
@@ -113,8 +150,8 @@ export const INITIAL_TASKS: TaskItem[] = [
     attachments: [
       { id: 'att_21', name: 'Meeting_Agenda.pdf', size: '640 KB', type: 'document' },
     ],
-    assignedTo: 'Sarah Chen',
-    assignedBy: 'Alex Rivera',
+    assignedTo: 'Shambhavi Maddheshiya',
+    assignedBy: 'Saniya Firdaush',
     assignmentStatus: 'accepted',
     comments: [],
     focusMinutesSpent: 0,
@@ -138,8 +175,8 @@ export const INITIAL_TASKS: TaskItem[] = [
     attachments: [
       { id: 'att_31', name: 'Scheduling_Calendar_Module_Spec.docx', size: '1.2 MB', type: 'document' }
     ],
-    assignedTo: 'David Kim',
-    assignedBy: 'Alex Rivera',
+    assignedTo: 'Utpreksha Kashyap',
+    assignedBy: 'Saniya Firdaush',
     assignmentStatus: 'accepted',
     comments: [],
     focusMinutesSpent: 25,
@@ -160,15 +197,15 @@ export const INITIAL_TASKS: TaskItem[] = [
       { id: 'sub_42', title: 'Measure subtask granularity and accuracy', completed: false, estimatedMinutes: 30 },
     ],
     attachments: [],
-    assignedTo: 'Sarah Chen',
-    assignedBy: 'Alex Rivera',
+    assignedTo: 'Riya Pant',
+    assignedBy: 'Saniya Firdaush',
     assignmentStatus: 'pending_acceptance', // Awaiting User -> Accept / Resign / Reject
     comments: [
       {
         id: 'c_31',
-        authorName: 'Alex Rivera',
+        authorName: 'Saniya Firdaush',
         authorRole: 'manager',
-        text: 'Genie suggested you for this based on your prompt engineering strengths. Please accept or reject.',
+        text: 'Genie suggested you for this QA & benchmarking task. Please accept or reject.',
         timestamp: '09:00 AM',
       }
     ],
@@ -192,8 +229,8 @@ export const INITIAL_TASKS: TaskItem[] = [
     attachments: [
       { id: 'att_51', name: 'Context_Diagram_Final.jpeg', size: '2.1 MB', type: 'image' }
     ],
-    assignedTo: 'Sarah Chen',
-    assignedBy: 'Alex Rivera',
+    assignedTo: 'Jyoti Kumari',
+    assignedBy: 'Saniya Firdaush',
     assignmentStatus: 'accepted',
     comments: [],
     focusMinutesSpent: 45,
@@ -223,7 +260,30 @@ export class D1TaskStoreService {
         localStorage.setItem(D1_STORAGE_KEY, JSON.stringify(INITIAL_TASKS));
         return INITIAL_TASKS;
       }
-      return JSON.parse(data);
+      const parsed: TaskItem[] = JSON.parse(data);
+      let migrated = false;
+      const normalized = parsed.map((t) => {
+        const nextAssignedTo = normalizeLegacyName(t.assignedTo);
+        const nextAssignedBy = normalizeLegacyName(t.assignedBy);
+        const nextComments = (t.comments || []).map((c) => {
+          const nextAuthor = normalizeLegacyName(c.authorName) || c.authorName;
+          if (nextAuthor !== c.authorName) migrated = true;
+          return { ...c, authorName: nextAuthor };
+        });
+        if (nextAssignedTo !== t.assignedTo || nextAssignedBy !== t.assignedBy) {
+          migrated = true;
+        }
+        return {
+          ...t,
+          assignedTo: nextAssignedTo,
+          assignedBy: nextAssignedBy,
+          comments: nextComments,
+        };
+      });
+      if (migrated) {
+        localStorage.setItem(D1_STORAGE_KEY, JSON.stringify(normalized));
+      }
+      return normalized;
     } catch {
       return INITIAL_TASKS;
     }
@@ -366,7 +426,21 @@ export class D1TaskStoreService {
     try {
       const data = localStorage.getItem(USER_STORAGE_KEY);
       if (!data) return null;
-      return JSON.parse(data);
+      const user: UserProfile = JSON.parse(data);
+      const nextName = normalizeLegacyName(user.name) || user.name;
+      if (nextName !== user.name) {
+        const matched = INITIAL_TEAM_MEMBERS.find((m) => m.name === nextName);
+        const updated: UserProfile = {
+          ...user,
+          name: nextName,
+          email: matched?.email || user.email,
+          avatar: matched?.avatar || user.avatar,
+          title: matched?.role || user.title,
+        };
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updated));
+        return updated;
+      }
+      return user;
     } catch {
       return null;
     }

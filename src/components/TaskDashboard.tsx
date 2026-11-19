@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { TaskItem, TaskCategory, UserProfile } from '../types/task';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { TaskItem, TaskCategory, UserProfile, SmartSortResult } from '../types/task';
 import { D1TaskStoreService } from '../store/taskStore';
 import { GenieService } from '../services/genieService';
 import { DailyGoalWidget } from './DailyGoalWidget';
@@ -20,6 +20,8 @@ import {
   X,
   CornerUpLeft,
   Search,
+  ArrowUpDown,
+  RefreshCw,
 } from 'lucide-react';
 
 interface TaskDashboardProps {
@@ -50,11 +52,79 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'completed'>('all');
   const [dividingTaskId, setDividingTaskId] = useState<string | null>(null);
+  const [isSmartSortEnabled, setIsSmartSortEnabled] = useState<boolean>(true);
+  const [smartSortResult, setSmartSortResult] = useState<SmartSortResult>(() =>
+    GenieService.computeLocalSmartSort(tasks)
+  );
+  const [isSmartSorting, setIsSmartSorting] = useState<boolean>(false);
 
   // Categories matching user's diagram
   const categories = ['All', 'Assignment', 'Work', 'Project', 'Meeting', 'Study'];
 
   const todayStr = new Date().toISOString().split('T')[0];
+
+  // Track changes in deadlines, effort, and historical completion patterns to trigger automatic re-sorting
+  const taskSortSignature = useMemo(() => {
+    const activeSig = tasks
+      .filter((t) => t.status !== 'completed' && t.status !== 'archived')
+      .map(
+        (t) =>
+          `${t.id}:${t.status}:${t.priority}:${t.dueDate}:${t.dueTime || ''}:${t.category}:${t.focusMinutesSpent}:${t.subtasks
+            .map((s) => `${s.completed ? 1 : 0}/${s.estimatedMinutes || 20}`)
+            .join(',')}`
+      )
+      .join('|');
+    const completedSig = tasks
+      .filter((t) => t.status === 'completed')
+      .map((t) => `${t.id}:${t.category}:${t.focusMinutesSpent}`)
+      .join('|');
+    return `${activeSig}__HIST__${completedSig}`;
+  }, [tasks]);
+
+  const runSmartSort = useCallback(
+    async (allTasks: TaskItem[]) => {
+      // Immediate local calculation so reordering is instantaneous
+      setSmartSortResult(GenieService.computeLocalSmartSort(allTasks));
+      const activeCount = allTasks.filter((t) => t.status !== 'completed' && t.status !== 'archived').length;
+      if (activeCount <= 1) return;
+
+      setIsSmartSorting(true);
+      try {
+        const result = await GenieService.smartSortTasks(allTasks);
+        setSmartSortResult(result);
+      } finally {
+        setIsSmartSorting(false);
+      }
+    },
+    []
+  );
+
+  // Automatically reorder tasks whenever deadlines, effort, or completion history changes
+  useEffect(() => {
+    if (!isSmartSortEnabled) return;
+    setSmartSortResult(GenieService.computeLocalSmartSort(tasks));
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      const activeCount = tasks.filter((t) => t.status !== 'completed' && t.status !== 'archived').length;
+      if (activeCount <= 1) return;
+      setIsSmartSorting(true);
+      try {
+        const result = await GenieService.smartSortTasks(tasks);
+        if (!cancelled) {
+          setSmartSortResult(result);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsSmartSorting(false);
+        }
+      }
+    }, 350);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [isSmartSortEnabled, taskSortSignature, tasks]);
 
   // Filter tasks
   const filteredTasks = tasks.filter((t) => {
@@ -77,6 +147,20 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
   const upcomingTasks = filteredTasks.filter((t) => t.dueDate > todayStr);
   const overdueOrPastTasks = filteredTasks.filter((t) => t.dueDate < todayStr && t.status !== 'completed');
   const completedTasks = filteredTasks.filter((t) => t.status === 'completed');
+
+  // Active tasks reordered by AI Smart Sort
+  const smartSortedActiveTasks = useMemo(() => {
+    const active = filteredTasks.filter((t) => t.status !== 'completed' && t.status !== 'archived');
+    const orderIndex = new Map<string, number>();
+    smartSortResult.orderedTaskIds.forEach((id, idx) => orderIndex.set(id, idx));
+
+    return [...active].sort((a, b) => {
+      const idxA = orderIndex.has(a.id) ? (orderIndex.get(a.id) as number) : Number.MAX_SAFE_INTEGER;
+      const idxB = orderIndex.has(b.id) ? (orderIndex.get(b.id) as number) : Number.MAX_SAFE_INTEGER;
+      if (idxA !== idxB) return idxA - idxB;
+      return a.dueDate.localeCompare(b.dueDate);
+    });
+  }, [filteredTasks, smartSortResult.orderedTaskIds]);
 
   const handleToggleTaskStatus = (task: TaskItem) => {
     const newStatus = task.status === 'completed' ? 'in_progress' : 'completed';
@@ -132,11 +216,12 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
     return <span className="text-slate-500 font-normal text-[11px]">Low priority</span>;
   };
 
-  const renderTaskCard = (task: TaskItem) => {
+  const renderTaskCard = (task: TaskItem, smartRank?: number) => {
     const isExpanded = expandedTaskId === task.id;
     const isCompleted = task.status === 'completed';
     const completedSubtasks = task.subtasks.filter((s) => s.completed).length;
     const isPendingAcceptance = task.assignmentStatus === 'pending_acceptance';
+    const smartInsight = isSmartSortEnabled && !isCompleted ? smartSortResult.insightsByTaskId[task.id] : undefined;
 
     return (
       <div
@@ -150,6 +235,33 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
         }`}
       >
         <div className="p-3.5">
+          {/* AI Smart Sort Context Strip when Smart Queue is active */}
+          {smartInsight && smartRank !== undefined && (
+            <div className="flex items-center justify-between gap-2 pb-2 mb-2 border-b border-slate-100 dark:border-zinc-800/80 text-[10px]">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="font-mono font-bold px-1.5 py-0.5 rounded bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-950 shrink-0">
+                  #{smartRank + 1}
+                </span>
+                <span className="text-slate-600 dark:text-zinc-300 truncate">
+                  {smartInsight.reason}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0 font-mono">
+                <span className="text-[10px] font-semibold text-amber-600 dark:text-amber-400">
+                  {smartInsight.primaryFactor === 'deadline'
+                    ? 'Deadline'
+                    : smartInsight.primaryFactor === 'effort'
+                    ? 'Effort'
+                    : 'History'}
+                </span>
+                <span className="text-slate-400 dark:text-zinc-600">·</span>
+                <span className="font-bold text-slate-700 dark:text-zinc-200">
+                  {smartInsight.score} pts
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* Top Line: Category / Due Date / Priority */}
           <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400 mb-2">
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -157,7 +269,9 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
               <span aria-hidden="true">·</span>
               <div className="flex items-center gap-1">
                 <Clock className="w-3 h-3 text-slate-400 dark:text-zinc-500" />
-                <span>{task.dueDate === todayStr ? 'Today' : task.dueDate}</span>
+                <span className={!isCompleted && task.dueDate < todayStr ? 'text-rose-600 dark:text-rose-400 font-semibold' : ''}>
+                  {task.dueDate === todayStr ? 'Today' : task.dueDate < todayStr && !isCompleted ? `Past Due (${task.dueDate})` : task.dueDate}
+                </span>
                 {task.dueTime && <span>{task.dueTime}</span>}
               </div>
               {task.isRecurring && (
@@ -489,67 +603,178 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
           </button>
         </div>
 
-        {/* Day-Wise Section 1: Today */}
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-2">
-              <h2 className="text-xs font-bold text-slate-900 dark:text-zinc-100 uppercase tracking-wider">
-                Today's Tasks
-              </h2>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-800 dark:text-zinc-300">
-                {todayTasks.length}
-              </span>
+        {/* AI Smart Sort Control Bar */}
+        <div className="bg-white dark:bg-zinc-900 p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 shadow-xs space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-7 h-7 rounded-lg bg-zinc-900 dark:bg-zinc-800 text-amber-400 flex items-center justify-center shrink-0">
+                <Sparkles className="w-3.5 h-3.5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-slate-900 dark:text-zinc-100">
+                    AI Smart Sort
+                  </span>
+                  {isSmartSortEnabled && (
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700">
+                      {smartSortResult.source === 'gemini' ? 'Gemini AI' : 'Auto Engine'}
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] text-slate-500 dark:text-zinc-400 truncate">
+                  Deadlines · Effort · Completion History
+                </p>
+              </div>
             </div>
-            <span className="text-[11px] text-slate-400 dark:text-zinc-500">{todayStr}</span>
-          </div>
 
-          <div className="space-y-2.5">
-            {todayTasks.length > 0 ? (
-              todayTasks.map(renderTaskCard)
-            ) : (
-              <div className="text-center py-6 bg-white dark:bg-zinc-900 rounded-2xl border border-dashed border-slate-200 dark:border-zinc-800">
-                <p className="text-xs text-slate-400 dark:text-zinc-500">No tasks scheduled for today.</p>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {isSmartSortEnabled && (
                 <button
-                  onClick={() => onOpenCreateTask()}
-                  className="mt-2 text-xs font-semibold text-slate-900 dark:text-zinc-100 hover:underline"
+                  type="button"
+                  disabled={isSmartSorting}
+                  onClick={() => runSmartSort(tasks)}
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-500 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                  title="Re-analyze smart order"
+                  aria-label="Re-analyze smart order"
                 >
-                  + Create your first task
+                  <RefreshCw className={`w-3.5 h-3.5 ${isSmartSorting ? 'animate-spin text-amber-500' : ''}`} />
+                </button>
+              )}
+
+              <div className="flex items-center p-0.5 rounded-lg bg-slate-100 dark:bg-black border border-slate-200 dark:border-zinc-800 text-[11px] font-semibold">
+                <button
+                  type="button"
+                  onClick={() => setIsSmartSortEnabled(true)}
+                  className={`px-2 py-1 rounded-md flex items-center gap-1 transition-all ${
+                    isSmartSortEnabled
+                      ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 shadow-xs'
+                      : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  <ArrowUpDown className="w-3 h-3" />
+                  <span>Smart</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsSmartSortEnabled(false)}
+                  className={`px-2 py-1 rounded-md transition-all ${
+                    !isSmartSortEnabled
+                      ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 shadow-xs'
+                      : 'text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Day-Wise
                 </button>
               </div>
-            )}
+            </div>
           </div>
-        </div>
 
-        {/* Overdue Alert Section if any */}
-        {overdueOrPastTasks.length > 0 && (
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <h2 className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
-                Past Due Deadlines
-              </h2>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-rose-100 dark:bg-zinc-900 text-rose-700 dark:text-rose-400 border border-transparent dark:border-zinc-800">
-                {overdueOrPastTasks.length}
+          {isSmartSortEnabled && smartSortResult.strategySummary && (
+            <div className="text-[11px] text-slate-600 dark:text-zinc-400 bg-slate-50 dark:bg-black/60 px-2.5 py-1.5 rounded-xl border border-slate-100 dark:border-zinc-800/80 flex items-center justify-between gap-2">
+              <span className="leading-snug">{smartSortResult.strategySummary}</span>
+              <span className="text-[9px] font-mono text-slate-400 dark:text-zinc-500 shrink-0">
+                {smartSortResult.analyzedAt}
               </span>
             </div>
-            <div className="space-y-2.5">{overdueOrPastTasks.map(renderTaskCard)}</div>
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* Day-Wise Section 2: Upcoming */}
-        {upcomingTasks.length > 0 && (
+        {/* Active Tasks Section: AI Priority Queue OR Day-Wise Groups */}
+        {isSmartSortEnabled ? (
           <div>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <h2 className="text-xs font-bold text-slate-900 dark:text-zinc-100 uppercase tracking-wider">
-                  Upcoming Schedule
+                  AI Priority Queue
                 </h2>
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
-                  {upcomingTasks.length}
+                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-800 dark:text-zinc-300">
+                  {smartSortedActiveTasks.length}
                 </span>
               </div>
+              <span className="text-[11px] text-slate-400 dark:text-zinc-500">Auto-ordered</span>
             </div>
-            <div className="space-y-2.5">{upcomingTasks.map(renderTaskCard)}</div>
+
+            <div className="space-y-2.5">
+              {smartSortedActiveTasks.length > 0 ? (
+                smartSortedActiveTasks.map((task, idx) => renderTaskCard(task, idx))
+              ) : (
+                <div className="text-center py-6 bg-white dark:bg-zinc-900 rounded-2xl border border-dashed border-slate-200 dark:border-zinc-800">
+                  <p className="text-xs text-slate-400 dark:text-zinc-500">All active tasks completed or filtered out.</p>
+                  <button
+                    onClick={() => onOpenCreateTask()}
+                    className="mt-2 text-xs font-semibold text-slate-900 dark:text-zinc-100 hover:underline"
+                  >
+                    + Create your next task
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
+        ) : (
+          <>
+            {/* Day-Wise Section 1: Today */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xs font-bold text-slate-900 dark:text-zinc-100 uppercase tracking-wider">
+                    Today's Tasks
+                  </h2>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-slate-200 dark:bg-zinc-800 text-slate-800 dark:text-zinc-300">
+                    {todayTasks.length}
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-400 dark:text-zinc-500">{todayStr}</span>
+              </div>
+
+              <div className="space-y-2.5">
+                {todayTasks.length > 0 ? (
+                  todayTasks.map((task) => renderTaskCard(task))
+                ) : (
+                  <div className="text-center py-6 bg-white dark:bg-zinc-900 rounded-2xl border border-dashed border-slate-200 dark:border-zinc-800">
+                    <p className="text-xs text-slate-400 dark:text-zinc-500">No tasks scheduled for today.</p>
+                    <button
+                      onClick={() => onOpenCreateTask()}
+                      className="mt-2 text-xs font-semibold text-slate-900 dark:text-zinc-100 hover:underline"
+                    >
+                      + Create your first task
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Overdue Alert Section if any */}
+            {overdueOrPastTasks.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <h2 className="text-xs font-bold text-rose-600 dark:text-rose-400 uppercase tracking-wider">
+                    Past Due Deadlines
+                  </h2>
+                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-rose-100 dark:bg-zinc-900 text-rose-700 dark:text-rose-400 border border-transparent dark:border-zinc-800">
+                    {overdueOrPastTasks.length}
+                  </span>
+                </div>
+                <div className="space-y-2.5">{overdueOrPastTasks.map((task) => renderTaskCard(task))}</div>
+              </div>
+            )}
+
+            {/* Day-Wise Section 2: Upcoming */}
+            {upcomingTasks.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xs font-bold text-slate-900 dark:text-zinc-100 uppercase tracking-wider">
+                      Upcoming Schedule
+                    </h2>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400">
+                      {upcomingTasks.length}
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-2.5">{upcomingTasks.map((task) => renderTaskCard(task))}</div>
+              </div>
+            )}
+          </>
         )}
 
         {/* Section 3: Completed Archive */}
@@ -560,7 +785,7 @@ export const TaskDashboard: React.FC<TaskDashboardProps> = ({
                 Completed ({completedTasks.length})
               </h2>
             </div>
-            <div className="space-y-2.5">{completedTasks.map(renderTaskCard)}</div>
+            <div className="space-y-2.5">{completedTasks.map((task) => renderTaskCard(task))}</div>
           </div>
         )}
       </div>

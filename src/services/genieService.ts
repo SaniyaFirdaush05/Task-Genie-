@@ -1,4 +1,12 @@
-import { Subtask, Priority, TaskCategory } from '../types/task';
+import {
+  Subtask,
+  Priority,
+  TaskCategory,
+  TaskItem,
+  SmartSortFactor,
+  SmartSortResult,
+  SmartSortTaskInsight,
+} from '../types/task';
 
 export interface DivideSubtasksResponse {
   subtasks: Array<{ title: string; estimatedMinutes: number }>;
@@ -134,14 +142,270 @@ export class GenieService {
       return res.data;
     }
 
-    const isPresentation = taskTitle.toLowerCase().includes('ppt') || taskTitle.toLowerCase().includes('presentation');
+    const lower = taskTitle.toLowerCase();
+    if (lower.includes('qa') || lower.includes('test') || lower.includes('benchmark')) {
+      return {
+        suggestedAssignee: 'Riya Pant',
+        suggestedRole: 'QA Engineer',
+        rationale: 'QA Engineer role aligns with testing and benchmarking deliverables alongside shared Development & Coding.',
+      };
+    }
+    if (lower.includes('design') || lower.includes('dfd') || lower.includes('system') || lower.includes('arch')) {
+      return {
+        suggestedAssignee: 'Utpreksha Kashyap',
+        suggestedRole: 'System Designer',
+        rationale: 'System Designer role fits architecture and DFD verification tasks alongside shared Development & Coding.',
+      };
+    }
+    if (lower.includes('requirement') || lower.includes('sync') || lower.includes('agenda')) {
+      return {
+        suggestedAssignee: 'Shambhavi Maddheshiya',
+        suggestedRole: 'Requirement Analyst',
+        rationale: 'Requirement Analyst role matches sprint scoping and requirement alignment alongside Development & Coding.',
+      };
+    }
     return {
-      suggestedAssignee: isPresentation ? 'Sarah Chen' : 'David Kim',
-      suggestedRole: isPresentation ? 'Presentation Author' : 'Technical Specialist',
-      rationale: isPresentation
-        ? 'Sarah Chen has a 94% on-time record for visual slide decks and assignments.'
-        : 'David Kim has optimal current bandwidth in the Work Plot queue.',
+      suggestedAssignee: 'Jyoti Kumari',
+      suggestedRole: 'Project Analyst',
+      rationale: 'Project Analyst role aligns with analysis, roadmap decks, and shared Development & Coding.',
     };
+  }
+
+  static estimateRemainingEffortMinutes(task: TaskItem): number {
+    if (task.subtasks && task.subtasks.length > 0) {
+      const remaining = task.subtasks.filter((s) => !s.completed);
+      if (remaining.length === 0) return 10;
+      return remaining.reduce((sum, s) => sum + (s.estimatedMinutes || 20), 0);
+    }
+    return task.priority === 'high' ? 60 : task.priority === 'medium' ? 40 : 25;
+  }
+
+  static computeHistoricalPatterns(tasks: TaskItem[]) {
+    const completedTasks = tasks.filter((t) => t.status === 'completed');
+    const categories = new Set<string>(tasks.map((t) => t.category));
+
+    const categoryCompletionRates: Record<string, number> = {};
+    const categoryAvgFocusMinutes: Record<string, number> = {};
+
+    categories.forEach((cat) => {
+      const catTasks = tasks.filter((t) => t.category === cat);
+      const catCompleted = catTasks.filter((t) => t.status === 'completed');
+      categoryCompletionRates[cat] =
+        catTasks.length > 0 ? Math.round((catCompleted.length / catTasks.length) * 100) : 50;
+      const totalFocus = catCompleted.reduce((sum, t) => sum + (t.focusMinutesSpent || 0), 0);
+      categoryAvgFocusMinutes[cat] =
+        catCompleted.length > 0 ? Math.round(totalFocus / catCompleted.length) : 0;
+    });
+
+    const totalCompletedFocus = completedTasks.reduce((sum, t) => sum + (t.focusMinutesSpent || 0), 0);
+    const avgCompletedFocusMinutes =
+      completedTasks.length > 0 ? Math.round(totalCompletedFocus / completedTasks.length) : 30;
+
+    const avgCompletedSubtasks =
+      completedTasks.length > 0
+        ? Number(
+            (
+              completedTasks.reduce((sum, t) => sum + t.subtasks.length, 0) / completedTasks.length
+            ).toFixed(1)
+          )
+        : 2;
+
+    return {
+      totalTasksAnalyzed: tasks.length,
+      completedTasksCount: completedTasks.length,
+      avgCompletedFocusMinutes,
+      avgCompletedSubtasks,
+      categoryCompletionRates,
+      categoryAvgFocusMinutes,
+    };
+  }
+
+  static computeLocalSmartSort(allTasks: TaskItem[]): SmartSortResult {
+    const activeTasks = allTasks.filter((t) => t.status !== 'completed' && t.status !== 'archived');
+    const patterns = this.computeHistoricalPatterns(allTasks);
+    const todayStr = new Date().toISOString().split('T')[0];
+    const nowTime = new Date();
+
+    const insights: SmartSortTaskInsight[] = activeTasks.map((task) => {
+      const effortLeft = this.estimateRemainingEffortMinutes(task);
+
+      // 1. Deadline urgency (0 - 48 pts)
+      const diffMs = new Date(`${task.dueDate}T${task.dueTime || '23:59'}:00`).getTime() - nowTime.getTime();
+      const diffHours = diffMs / (1000 * 3600);
+      let deadlinePts = 12;
+      if (task.dueDate < todayStr || diffHours < 0) {
+        deadlinePts = 48;
+      } else if (task.dueDate === todayStr) {
+        deadlinePts = diffHours <= 4 ? 44 : 38;
+      } else if (diffHours <= 48) {
+        deadlinePts = 30;
+      } else if (diffHours <= 96) {
+        deadlinePts = 22;
+      } else {
+        deadlinePts = Math.max(8, 18 - Math.floor(diffHours / 48));
+      }
+
+      // 2. Priority + Effort + Momentum (0 - 32 pts)
+      const priorityPts = task.priority === 'high' ? 14 : task.priority === 'medium' ? 8 : 3;
+      const doneSubtasks = task.subtasks.filter((s) => s.completed).length;
+      const progressRatio = task.subtasks.length > 0 ? doneSubtasks / task.subtasks.length : 0;
+      const momentumPts = task.status === 'in_progress' || progressRatio > 0 ? Math.round(6 + progressRatio * 6) : 0;
+
+      // Quick-win / effort feasibility relative to user's historical avg focus capacity
+      const effortFitDiff = Math.abs(effortLeft - patterns.avgCompletedFocusMinutes);
+      const effortPts = effortLeft <= 35 ? 10 : effortFitDiff <= 25 ? 8 : 5;
+
+      // 3. Historical Completion Pattern Alignment (0 - 20 pts)
+      const catRate = patterns.categoryCompletionRates[task.category] ?? 50;
+      const catFocus = patterns.categoryAvgFocusMinutes[task.category] ?? 0;
+      const historyPts = Math.round((catRate / 100) * 14) + (catFocus > 0 ? 4 : 0);
+
+      const score = Math.min(99, Math.max(15, deadlinePts + priorityPts + momentumPts + effortPts + historyPts));
+
+      // Determine primary ranking driver
+      let primaryFactor: SmartSortFactor = 'deadline';
+      if (deadlinePts < 30 && historyPts >= 14) {
+        primaryFactor = 'history';
+      } else if (deadlinePts < 30 && effortPts + momentumPts >= 14) {
+        primaryFactor = 'effort';
+      }
+
+      // Build human-readable reason referencing actual factors
+      const parts: string[] = [];
+      if (task.dueDate < todayStr || diffHours < 0) parts.push('Overdue deadline');
+      else if (task.dueDate === todayStr) parts.push(`Due today${task.dueTime ? ` ${task.dueTime}` : ''}`);
+      else parts.push(`Due ${task.dueDate}`);
+
+      parts.push(`~${effortLeft}m left`);
+
+      if (progressRatio > 0) {
+        parts.push(`${Math.round(progressRatio * 100)}% done`);
+      } else if (catRate >= 50 && patterns.completedTasksCount > 0) {
+        parts.push(`${catRate}% ${task.category} completion trend`);
+      } else {
+        parts.push(`${task.priority} priority`);
+      }
+
+      return {
+        taskId: task.id,
+        score,
+        primaryFactor,
+        estimatedMinutesLeft: effortLeft,
+        reason: parts.join(' · '),
+      };
+    });
+
+    insights.sort((a, b) => b.score - a.score);
+
+    const insightsByTaskId: Record<string, SmartSortTaskInsight> = {};
+    insights.forEach((ins) => {
+      insightsByTaskId[ins.taskId] = ins;
+    });
+
+    const summary =
+      patterns.completedTasksCount > 0
+        ? `Ranked ${activeTasks.length} active tasks by deadline urgency, ~${patterns.avgCompletedFocusMinutes}m avg completion pace, and category history.`
+        : `Ranked ${activeTasks.length} active tasks by deadline proximity, remaining subtask effort, and priority.`;
+
+    return {
+      orderedTaskIds: insights.map((i) => i.taskId),
+      strategySummary: summary,
+      insightsByTaskId,
+      source: 'heuristic',
+      analyzedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    };
+  }
+
+  static async smartSortTasks(allTasks: TaskItem[]): Promise<SmartSortResult> {
+    const localResult = this.computeLocalSmartSort(allTasks);
+    const activeTasks = allTasks.filter((t) => t.status !== 'completed' && t.status !== 'archived');
+
+    if (activeTasks.length <= 1) {
+      return localResult;
+    }
+
+    const patterns = this.computeHistoricalPatterns(allTasks);
+    const todayStr = new Date().toISOString().split('T')[0];
+
+    const compactTasks = activeTasks.map((t) => ({
+      id: t.id,
+      title: t.title,
+      category: t.category,
+      priority: t.priority,
+      status: t.status,
+      dueDate: t.dueDate,
+      dueTime: t.dueTime,
+      remainingSubtasks: t.subtasks.filter((s) => !s.completed).length,
+      totalSubtasks: t.subtasks.length,
+      remainingEffortMinutes: this.estimateRemainingEffortMinutes(t),
+      focusMinutesSpent: t.focusMinutesSpent || 0,
+      assignmentStatus: t.assignmentStatus,
+    }));
+
+    const res = await this.callApi('smart_sort', {
+      taskData: {
+        currentDate: todayStr,
+        activeTasks: compactTasks,
+        historicalPatterns: patterns,
+      },
+    });
+
+    if (res && res.data && Array.isArray(res.data.orderedTaskIds)) {
+      const validIds = new Set(activeTasks.map((t) => t.id));
+      const seen = new Set<string>();
+      const orderedIds: string[] = [];
+
+      for (const id of res.data.orderedTaskIds) {
+        if (typeof id === 'string' && validIds.has(id) && !seen.has(id)) {
+          seen.add(id);
+          orderedIds.push(id);
+        }
+      }
+
+      // Append any remaining active tasks not explicitly listed by AI
+      for (const id of localResult.orderedTaskIds) {
+        if (!seen.has(id)) {
+          seen.add(id);
+          orderedIds.push(id);
+        }
+      }
+
+      const insightsByTaskId: Record<string, SmartSortTaskInsight> = { ...localResult.insightsByTaskId };
+      if (Array.isArray(res.data.taskInsights)) {
+        for (const item of res.data.taskInsights) {
+          if (item && validIds.has(item.taskId)) {
+            const factor: SmartSortFactor =
+              item.primaryFactor === 'effort' || item.primaryFactor === 'history'
+                ? item.primaryFactor
+                : 'deadline';
+            insightsByTaskId[item.taskId] = {
+              taskId: item.taskId,
+              score: typeof item.score === 'number' ? Math.min(99, Math.max(1, Math.round(item.score))) : localResult.insightsByTaskId[item.taskId]?.score || 70,
+              primaryFactor: factor,
+              estimatedMinutesLeft:
+                localResult.insightsByTaskId[item.taskId]?.estimatedMinutesLeft || 30,
+              reason:
+                typeof item.reason === 'string' && item.reason.trim()
+                  ? item.reason.trim()
+                  : localResult.insightsByTaskId[item.taskId]?.reason || '',
+            };
+          }
+        }
+      }
+
+      return {
+        orderedTaskIds: orderedIds,
+        strategySummary:
+          typeof res.data.strategySummary === 'string' && res.data.strategySummary.trim()
+            ? res.data.strategySummary.trim()
+            : localResult.strategySummary,
+        insightsByTaskId,
+        source: res.source === 'gemini' ? 'gemini' : 'heuristic',
+        analyzedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+    }
+
+    return localResult;
   }
 
   static async getProductivityInsights(stats: { total: number; completed: number; overdue: number; focusMinutes: number }): Promise<ProductivityInsightsResponse> {

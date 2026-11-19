@@ -60,6 +60,7 @@ export interface TeamMember {
   name: string;
   email: string;
   role: string;
+  sharedResponsibility?: string;
   avatar: string;
   completedCount: number;
   activeCount: number;
@@ -92,5 +93,23 @@ export interface DailyGoal {
   linkedTaskId?: string;
   completedAt?: string;
   createdAt: string;
+}
+
+export type SmartSortFactor = 'deadline' | 'effort' | 'history';
+
+export interface SmartSortTaskInsight {
+  taskId: string;
+  score: number;
+  primaryFactor: SmartSortFactor;
+  estimatedMinutesLeft: number;
+  reason: string;
+}
+
+export interface SmartSortResult {
+  orderedTaskIds: string[];
+  strategySummary: string;
+  insightsByTaskId: Record<string, SmartSortTaskInsight>;
+  source: 'gemini' | 'heuristic';
+  analyzedAt: string;
 }
 

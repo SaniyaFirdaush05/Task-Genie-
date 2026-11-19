@@ -35,7 +35,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
   const [recurringFrequency, setRecurringFrequency] = useState<'daily' | 'weekly' | 'monthly'>(
     taskToEdit?.recurringFrequency || 'weekly'
   );
-  const [assignedTo, setAssignedTo] = useState(taskToEdit?.assignedTo || 'Sarah Chen');
+  const [assignedTo, setAssignedTo] = useState(taskToEdit?.assignedTo || INITIAL_TEAM_MEMBERS[0].name);
   const [subtasks, setSubtasks] = useState<Subtask[]>(taskToEdit?.subtasks || []);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState('');
   const [attachments, setAttachments] = useState<Attachment[]>(taskToEdit?.attachments || []);
@@ -148,7 +148,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
         isRecurring,
         recurringFrequency: isRecurring ? recurringFrequency : undefined,
         assignedTo,
-        assignedBy: 'Alex Rivera (Manager)',
+        assignedBy: 'Saniya Firdaush (Project Manager)',
         assignmentStatus: 'accepted',
         subtasks,
         attachments,

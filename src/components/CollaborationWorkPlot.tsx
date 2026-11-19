@@ -55,7 +55,7 @@ export const CollaborationWorkPlot: React.FC<CollaborationWorkPlotProps> = ({
       const unassignedOrPptTask = tasks.find((t) => t.title.toLowerCase().includes('ppt')) || tasks[0];
       const result = await GenieService.suggestWork(
         unassignedOrPptTask?.title || 'Q4 Presentation Deck',
-        teamMembers.map((m) => m.name)
+        teamMembers.map((m) => `${m.name} (${m.role})`)
       );
       if (result) {
         setSuggestedWorkResult({
@@ -283,7 +283,9 @@ export const CollaborationWorkPlot: React.FC<CollaborationWorkPlotProps> = ({
               <h3 className="text-xs font-bold text-slate-900 dark:text-zinc-100 uppercase tracking-wider">
                 Work Plot Team ({teamMembers.length})
               </h3>
-              <p className="text-[10px] text-slate-400 dark:text-zinc-400">Teamwork Invite & Workload Analysis</p>
+              <p className="text-[10px] text-slate-400 dark:text-zinc-400">
+                Teamwork Invite & Workload Analysis · All share Development & Coding
+              </p>
             </div>
             <button
               onClick={handleInviteMember}
@@ -317,13 +319,15 @@ export const CollaborationWorkPlot: React.FC<CollaborationWorkPlotProps> = ({
                         <span className="font-bold text-slate-900 dark:text-zinc-100 truncate">
                           {member.name}
                         </span>
-                        {member.id === 'mem_2' && (
-                          <span className="text-[9px] px-1 py-0.2 rounded bg-violet-100 text-violet-700 dark:bg-zinc-800 dark:text-zinc-300 font-semibold uppercase">
+                        {member.role === 'Project Manager' && (
+                          <span className="text-[9px] px-1 py-0.2 rounded bg-violet-100 text-violet-700 dark:bg-zinc-800 dark:text-zinc-300 font-semibold uppercase shrink-0">
                             Manager
                           </span>
                         )}
                       </div>
-                      <p className="text-[10px] text-slate-400 dark:text-zinc-400 truncate">{member.role}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-zinc-400 truncate">
+                        {member.role} · {member.sharedResponsibility || 'Development & Coding'}
+                      </p>
                     </div>
                   </div>
 
