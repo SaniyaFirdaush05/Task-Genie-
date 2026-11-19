@@ -1,9 +1,11 @@
-import { TaskItem, TeamMember, UserProfile, ReminderAlert, AssignmentStatus, DailyGoal } from '../types/task';
+import { TaskItem, TeamMember, UserProfile, ReminderAlert, AssignmentStatus, DailyGoal, DailyFocusStats } from '../types/task';
 
 const D1_STORAGE_KEY = 'task_genie_d1_taskstore_v1';
 const USER_STORAGE_KEY = 'task_genie_current_user_v1';
 const ALERTS_STORAGE_KEY = 'task_genie_alerts_v1';
 const DAILY_GOAL_STORAGE_KEY = 'task_genie_daily_goal_v1';
+const DAILY_FOCUS_STORAGE_KEY = 'task_genie_daily_focus_v1';
+const DAILY_FOCUS_GOAL_MINUTES_KEY = 'task_genie_daily_focus_goal_mins_v1';
 
 const makeAvatar = (initials: string, bgStart: string, bgEnd: string) =>
   `data:image/svg+xml;utf8,${encodeURIComponent(
@@ -412,13 +414,130 @@ export class D1TaskStoreService {
     this.saveTasks(tasks);
   }
 
-  static logFocusMinutes(taskId: string, minutes: number) {
-    const tasks = this.getTasks();
-    const task = tasks.find((t) => t.id === taskId);
-    if (!task) return;
+  static logFocusMinutes(taskId: string | undefined, minutes: number, sessionType: 'work' | 'deepFocus' = 'work') {
+    const todayStr = getRelativeDateStr(0);
+    const focusMap = this.getDailyFocusMap();
+    const existing = focusMap[todayStr] || {
+      date: todayStr,
+      totalMinutes: 0,
+      sessionsCount: 0,
+      deepFocusSessions: 0,
+      pomodoroSessions: 0,
+    };
 
-    task.focusMinutesSpent = (task.focusMinutesSpent || 0) + minutes;
-    this.saveTasks(tasks);
+    focusMap[todayStr] = {
+      ...existing,
+      totalMinutes: existing.totalMinutes + minutes,
+      sessionsCount: existing.sessionsCount + 1,
+      deepFocusSessions: existing.deepFocusSessions + (sessionType === 'deepFocus' ? 1 : 0),
+      pomodoroSessions: existing.pomodoroSessions + (sessionType === 'work' ? 1 : 0),
+    };
+    localStorage.setItem(DAILY_FOCUS_STORAGE_KEY, JSON.stringify(focusMap));
+
+    const tasks = this.getTasks();
+    const task = taskId ? tasks.find((t) => t.id === taskId) : undefined;
+    if (task) {
+      task.focusMinutesSpent = (task.focusMinutesSpent || 0) + minutes;
+      this.saveTasks(tasks);
+    } else {
+      this.notify();
+    }
+  }
+
+  private static getDailyFocusMap(): Record<string, DailyFocusStats> {
+    try {
+      const raw = localStorage.getItem(DAILY_FOCUS_STORAGE_KEY);
+      if (raw) {
+        return JSON.parse(raw);
+      }
+
+      // Seed initial per-day focus data from tasks' existing focusMinutesSpent
+      const todayStr = getRelativeDateStr(0);
+      const twoDaysAgoStr = getRelativeDateStr(-2);
+      const seeded: Record<string, DailyFocusStats> = {};
+      const tasks = this.getTasks();
+
+      for (const task of tasks) {
+        if (!task.focusMinutesSpent || task.focusMinutesSpent <= 0) continue;
+        const targetDate = task.completedAt
+          ? task.completedAt.split('T')[0]
+          : task.dueDate <= todayStr
+            ? task.dueDate
+            : twoDaysAgoStr;
+
+        const current = seeded[targetDate] || {
+          date: targetDate,
+          totalMinutes: 0,
+          sessionsCount: 0,
+          deepFocusSessions: 0,
+          pomodoroSessions: 0,
+        };
+
+        const isDeep = task.focusMinutesSpent === 45;
+        const estSessions = Math.max(1, Math.round(task.focusMinutesSpent / (isDeep ? 45 : 25)));
+        seeded[targetDate] = {
+          date: targetDate,
+          totalMinutes: current.totalMinutes + task.focusMinutesSpent,
+          sessionsCount: current.sessionsCount + estSessions,
+          deepFocusSessions: current.deepFocusSessions + (isDeep ? estSessions : 0),
+          pomodoroSessions: current.pomodoroSessions + (isDeep ? 0 : estSessions),
+        };
+      }
+
+      localStorage.setItem(DAILY_FOCUS_STORAGE_KEY, JSON.stringify(seeded));
+      return seeded;
+    } catch {
+      return {};
+    }
+  }
+
+  static getDailyFocusSummary(days = 7): DailyFocusStats[] {
+    const map = this.getDailyFocusMap();
+    const result: DailyFocusStats[] = [];
+    for (let i = 0; i < days; i++) {
+      const dateStr = getRelativeDateStr(-i);
+      result.push(
+        map[dateStr] || {
+          date: dateStr,
+          totalMinutes: 0,
+          sessionsCount: 0,
+          deepFocusSessions: 0,
+          pomodoroSessions: 0,
+        }
+      );
+    }
+    return result;
+  }
+
+  static getTodayFocusStats(): DailyFocusStats {
+    const todayStr = getRelativeDateStr(0);
+    const map = this.getDailyFocusMap();
+    return (
+      map[todayStr] || {
+        date: todayStr,
+        totalMinutes: 0,
+        sessionsCount: 0,
+        deepFocusSessions: 0,
+        pomodoroSessions: 0,
+      }
+    );
+  }
+
+  static getDailyFocusGoalMinutes(): number {
+    try {
+      const raw = localStorage.getItem(DAILY_FOCUS_GOAL_MINUTES_KEY);
+      if (!raw) return 120;
+      const parsed = Number(raw);
+      return Number.isFinite(parsed) && parsed >= 15 ? parsed : 120;
+    } catch {
+      return 120;
+    }
+  }
+
+  static setDailyFocusGoalMinutes(minutes: number) {
+    const clamped = Math.max(15, Math.min(480, Math.round(minutes)));
+    localStorage.setItem(DAILY_FOCUS_GOAL_MINUTES_KEY, String(clamped));
+    this.notify();
   }
 
   // --- Current User Session Management ---
@@ -566,6 +685,7 @@ export class D1TaskStoreService {
 
   static resetToDemoData() {
     localStorage.setItem(D1_STORAGE_KEY, JSON.stringify(INITIAL_TASKS));
+    localStorage.removeItem(DAILY_FOCUS_STORAGE_KEY);
     const todayStr = new Date().toISOString().split('T')[0];
     const defaultGoal: DailyGoal = {
       id: `goal_${todayStr}`,

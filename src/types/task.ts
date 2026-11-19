@@ -113,3 +113,12 @@ export interface SmartSortResult {
   analyzedAt: string;
 }
 
+export interface DailyFocusStats {
+  date: string; // YYYY-MM-DD
+  totalMinutes: number;
+  sessionsCount: number;
+  deepFocusSessions: number;
+  pomodoroSessions: number;
+}
+
+

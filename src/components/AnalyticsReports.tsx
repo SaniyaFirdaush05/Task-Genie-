@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { TaskItem, UserProfile } from '../types/task';
 import { GenieService, ProductivityInsightsResponse } from '../services/genieService';
+import { PdfReportService } from '../services/pdfReportService';
 import {
   BarChart3,
   TrendingUp,
@@ -18,6 +19,8 @@ import {
   ShieldCheck,
   Activity,
   Zap,
+  X,
+  Check,
 } from 'lucide-react';
 
 interface AnalyticsReportsProps {
@@ -30,27 +33,48 @@ export const AnalyticsReports: React.FC<AnalyticsReportsProps> = ({ tasks, curre
   const [aiInsights, setAiInsights] = useState<ProductivityInsightsResponse | null>(null);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
   const [activeHoverBar, setActiveHoverBar] = useState<number | null>(null);
-
-  // Computations
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter((t) => t.status === 'completed').length;
-  const inProgressTasks = tasks.filter((t) => t.status === 'in_progress').length;
-  const todoTasks = tasks.filter((t) => t.status === 'todo').length;
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
+  const [includeAiInPdf, setIncludeAiInPdf] = useState(true);
+  const [includeLedgerInPdf, setIncludeLedgerInPdf] = useState(true);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const [exportedFilename, setExportedFilename] = useState<string | null>(null);
 
   const todayStr = new Date().toISOString().split('T')[0];
-  const overdueTasks = tasks.filter((t) => t.dueDate < todayStr && t.status !== 'completed').length;
+
+  // Scope tasks to selected timeRange
+  const scopedTasks = useMemo(() => {
+    if (timeRange === 'all') return tasks;
+    const now = new Date();
+    const maxDays = timeRange === 'week' ? 7 : 30;
+    return tasks.filter((t) => {
+      const refDate = new Date(t.dueDate || t.createdAt);
+      const diffDays = Math.abs((refDate.getTime() - now.getTime()) / (1000 * 3600 * 24));
+      return diffDays <= maxDays;
+    });
+  }, [tasks, timeRange]);
+
+  const timeRangeLabel =
+    timeRange === 'week' ? 'This Week' : timeRange === 'month' ? 'This Month' : 'All Time';
+
+  // Computations
+  const totalTasks = scopedTasks.length;
+  const completedTasks = scopedTasks.filter((t) => t.status === 'completed').length;
+  const inProgressTasks = scopedTasks.filter((t) => t.status === 'in_progress').length;
+  const todoTasks = scopedTasks.filter((t) => t.status === 'todo').length;
+
+  const overdueTasks = scopedTasks.filter((t) => t.dueDate < todayStr && t.status !== 'completed').length;
 
   const completionPercentage = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   const onTimePercentage =
     totalTasks > 0 ? Math.max(0, Math.round(((totalTasks - overdueTasks) / totalTasks) * 100)) : 100;
 
-  const totalFocusMinutes = tasks.reduce((sum, t) => sum + (t.focusMinutesSpent || 0), 0);
+  const totalFocusMinutes = scopedTasks.reduce((sum, t) => sum + (t.focusMinutesSpent || 0), 0);
   const totalFocusHours = (totalFocusMinutes / 60).toFixed(1);
 
   // Priority Breakdown
-  const highPriorityCount = tasks.filter((t) => t.priority === 'high').length;
-  const mediumPriorityCount = tasks.filter((t) => t.priority === 'medium').length;
-  const lowPriorityCount = tasks.filter((t) => t.priority === 'low').length;
+  const highPriorityCount = scopedTasks.filter((t) => t.priority === 'high').length;
+  const mediumPriorityCount = scopedTasks.filter((t) => t.priority === 'medium').length;
+  const lowPriorityCount = scopedTasks.filter((t) => t.priority === 'low').length;
 
   // Performance Efficiency Score (0-100 scale)
   const efficiencyScore = Math.min(
@@ -64,7 +88,7 @@ export const AnalyticsReports: React.FC<AnalyticsReportsProps> = ({ tasks, curre
 
   // Category time breakdown
   const categoryBreakdown: Record<string, { count: number; minutes: number }> = {};
-  tasks.forEach((t) => {
+  scopedTasks.forEach((t) => {
     if (!categoryBreakdown[t.category]) {
       categoryBreakdown[t.category] = { count: 0, minutes: 0 };
     }
@@ -84,7 +108,7 @@ export const AnalyticsReports: React.FC<AnalyticsReportsProps> = ({ tasks, curre
       d.setDate(now.getDate() - (currentDayOfWeek - idx));
       const iso = d.toISOString().split('T')[0];
 
-      const dayTasks = tasks.filter((t) => t.dueDate === iso);
+      const dayTasks = scopedTasks.filter((t) => t.dueDate === iso);
       const doneCount = dayTasks.filter((t) => t.status === 'completed').length;
       const totalCount = dayTasks.length;
       const focusMins = dayTasks.reduce((s, t) => s + (t.focusMinutesSpent || 0), 0);
@@ -150,7 +174,46 @@ export const AnalyticsReports: React.FC<AnalyticsReportsProps> = ({ tasks, curre
     };
   }, [totalTasks, completedTasks, overdueTasks, totalFocusMinutes]);
 
-  // Handle PDF Export / Print
+  // Handle Visual PDF Report Export Modal & Generation
+  const handleOpenPdfExport = () => {
+    setExportedFilename(null);
+    setIsPdfModalOpen(true);
+  };
+
+  const handleDownloadVisualPdf = () => {
+    setIsExportingPdf(true);
+    try {
+      const filename = PdfReportService.downloadPerformanceReport({
+        currentUser,
+        timeRangeLabel,
+        tasks: scopedTasks,
+        metrics: {
+          totalTasks,
+          completedTasks,
+          inProgressTasks,
+          todoTasks,
+          overdueTasks,
+          completionPercentage,
+          onTimePercentage,
+          totalFocusMinutes,
+          totalFocusHours,
+          efficiencyScore,
+          highPriorityCount,
+          mediumPriorityCount,
+          lowPriorityCount,
+        },
+        weeklyData,
+        categoryBreakdown,
+        aiInsights,
+        includeAiInsights: includeAiInPdf,
+        includeTaskLedger: includeLedgerInPdf,
+      });
+      setExportedFilename(filename);
+    } finally {
+      setIsExportingPdf(false);
+    }
+  };
+
   const handlePrintPdfReport = () => {
     window.print();
   };
@@ -169,11 +232,11 @@ export const AnalyticsReports: React.FC<AnalyticsReportsProps> = ({ tasks, curre
         </div>
 
         <button
-          onClick={handlePrintPdfReport}
+          onClick={handleOpenPdfExport}
           className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white text-white font-semibold text-xs flex items-center gap-1.5 shadow-sm transition-all"
-          title="Print or Save as PDF Report"
+          title="Preview and Download Visual PDF Performance Report"
         >
-          <Printer className="w-3.5 h-3.5" />
+          <Download className="w-3.5 h-3.5" />
           <span>Export PDF</span>
         </button>
       </div>
@@ -634,6 +697,198 @@ export const AnalyticsReports: React.FC<AnalyticsReportsProps> = ({ tasks, curre
           </div>
         )}
       </div>
+
+      {/* Visual PDF Report Preview & Download Modal */}
+      {isPdfModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs"
+            onClick={() => setIsPdfModalOpen(false)}
+          />
+          <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-zinc-800 max-h-[90vh] flex flex-col overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-150">
+            {/* Modal Header */}
+            <div className="p-4 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-zinc-900 dark:bg-zinc-800 text-emerald-400 flex items-center justify-center">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100">
+                    Export Visual PDF Report
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-zinc-400">
+                    A4 Vector Charts · {timeRangeLabel}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsPdfModalOpen(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                aria-label="Close Export PDF Modal"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Miniature Visual Document Preview */}
+            <div className="p-4 overflow-y-auto space-y-3">
+              <div className="rounded-2xl border border-slate-200 dark:border-zinc-700 bg-white text-slate-900 overflow-hidden shadow-sm">
+                {/* Preview Banner */}
+                <div className="bg-zinc-950 text-white px-3.5 py-2.5 flex items-center justify-between">
+                  <div>
+                    <div className="text-[11px] font-bold">Task Genie — Performance Report</div>
+                    <div className="text-[9px] text-zinc-400">
+                      {currentUser.name} · {timeRangeLabel} · {todayStr}
+                    </div>
+                  </div>
+                  <div className="px-2 py-1 rounded-lg bg-zinc-900 border border-zinc-700 text-right">
+                    <div className="text-[7px] text-zinc-400 uppercase font-bold">Index</div>
+                    <div className="text-[11px] font-extrabold text-emerald-400 font-mono">
+                      {efficiencyScore}/100
+                    </div>
+                  </div>
+                </div>
+
+                {/* Preview Body */}
+                <div className="p-3 space-y-2.5 text-[10px]">
+                  {/* Mini KPI strip */}
+                  <div className="grid grid-cols-4 gap-1.5">
+                    <div className="p-1.5 rounded-lg bg-slate-50 border border-slate-200">
+                      <div className="text-[8px] text-slate-500 font-semibold">Done</div>
+                      <div className="font-bold text-slate-900 font-mono">{completionPercentage}%</div>
+                    </div>
+                    <div className="p-1.5 rounded-lg bg-slate-50 border border-slate-200">
+                      <div className="text-[8px] text-slate-500 font-semibold">On-Time</div>
+                      <div className="font-bold text-slate-900 font-mono">{onTimePercentage}%</div>
+                    </div>
+                    <div className="p-1.5 rounded-lg bg-slate-50 border border-slate-200">
+                      <div className="text-[8px] text-slate-500 font-semibold">Focus</div>
+                      <div className="font-bold text-slate-900 font-mono">{totalFocusHours}h</div>
+                    </div>
+                    <div className="p-1.5 rounded-lg bg-slate-50 border border-slate-200">
+                      <div className="text-[8px] text-slate-500 font-semibold">Tasks</div>
+                      <div className="font-bold text-slate-900 font-mono">{totalTasks}</div>
+                    </div>
+                  </div>
+
+                  {/* Mini Bar Chart + Status Preview */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-2 rounded-xl border border-slate-200 bg-slate-50/50">
+                      <div className="text-[8px] font-bold text-slate-700 uppercase mb-1.5">
+                        Weekly Trend Chart
+                      </div>
+                      <div className="h-10 flex items-end justify-between gap-1 px-1">
+                        {weeklyData.map((d) => {
+                          const h = Math.max(20, Math.round((d.total / maxBarValue) * 100));
+                          const doneH = d.total > 0 ? Math.round((d.completed / d.total) * 100) : 0;
+                          return (
+                            <div
+                              key={d.day}
+                              className="flex-1 h-full flex items-end"
+                            >
+                              <div
+                                style={{ height: `${h}%` }}
+                                className="w-full rounded-t bg-slate-200 flex items-end overflow-hidden"
+                              >
+                                <div
+                                  style={{ height: `${doneH}%` }}
+                                  className="w-full bg-emerald-500 rounded-t"
+                                />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="p-2 rounded-xl border border-slate-200 bg-slate-50/50 flex flex-col justify-between">
+                      <div className="text-[8px] font-bold text-slate-700 uppercase">
+                        Visual Breakdown
+                      </div>
+                      <div className="space-y-1 my-1">
+                        <div className="flex justify-between text-[8px]">
+                          <span className="text-slate-600">Completed</span>
+                          <span className="font-mono font-bold">{completedTasks}</span>
+                        </div>
+                        <div className="flex justify-between text-[8px]">
+                          <span className="text-slate-600">In Progress</span>
+                          <span className="font-mono font-bold">{inProgressTasks}</span>
+                        </div>
+                        <div className="flex justify-between text-[8px]">
+                          <span className="text-slate-600">Overdue</span>
+                          <span className="font-mono font-bold text-rose-600">{overdueTasks}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-[9px] text-slate-500 text-center pt-1 border-t border-slate-100">
+                    Includes vector Priority Split, Category Allocation{includeAiInPdf && aiInsights ? ', AI Insights' : ''}{includeLedgerInPdf ? `, and ${totalTasks}-row Task Ledger` : ''}
+                  </div>
+                </div>
+              </div>
+
+              {/* Export Options */}
+              <div className="space-y-2 text-xs">
+                <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-black border border-slate-200 dark:border-zinc-800 cursor-pointer">
+                  <span className="font-medium text-slate-800 dark:text-zinc-200">
+                    Include Ask Genie Performance Audit
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={includeAiInPdf}
+                    onChange={(e) => setIncludeAiInPdf(e.target.checked)}
+                    className="w-4 h-4 rounded text-emerald-600"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-black border border-slate-200 dark:border-zinc-800 cursor-pointer">
+                  <span className="font-medium text-slate-800 dark:text-zinc-200">
+                    Include Detailed Task Completion Table
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={includeLedgerInPdf}
+                    onChange={(e) => setIncludeLedgerInPdf(e.target.checked)}
+                    className="w-4 h-4 rounded text-emerald-600"
+                  />
+                </label>
+              </div>
+
+              {exportedFilename && (
+                <div className="p-2.5 rounded-xl bg-emerald-50 dark:bg-zinc-950 border border-emerald-200 dark:border-emerald-500/40 text-emerald-800 dark:text-emerald-300 text-xs flex items-center gap-2">
+                  <Check className="w-4 h-4 shrink-0 text-emerald-500" />
+                  <span className="truncate font-medium">
+                    Downloaded <strong>{exportedFilename}</strong>
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={handlePrintPdfReport}
+                className="px-3 py-2 rounded-xl border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 hover:bg-slate-100 dark:hover:bg-zinc-800 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                <span>Print</span>
+              </button>
+
+              <button
+                type="button"
+                disabled={isExportingPdf}
+                onClick={handleDownloadVisualPdf}
+                className="flex-1 py-2 px-4 rounded-xl bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-950 dark:hover:bg-white text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>{isExportingPdf ? 'Generating PDF...' : 'Download Visual PDF'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
